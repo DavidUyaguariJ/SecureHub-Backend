@@ -117,11 +117,28 @@ app.Use(async (context, next) =>
 		try
 		{
 			var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
+			var identity = principal.Identity as ClaimsIdentity;
+			var resourceAccessClaim = principal.FindFirst("resource_access")?.Value;
+			if (resourceAccessClaim != null)
+			{
+				var resourceAccess = JsonDocument.Parse(resourceAccessClaim);
+				if (resourceAccess.RootElement.TryGetProperty("SecureHub-Api", out var client))
+				{
+					if (client.TryGetProperty("roles", out var roles))
+					{
+						foreach (var role in roles.EnumerateArray())
+						{
+							identity.AddClaim(new Claim(ClaimTypes.Role, role.GetString()));
+						}
+					}
+				}
+			}
+
 			context.User = principal;
 		}
 		catch (Exception ex)
 		{
-			// Token inválido
+			throw new Exception("Token no valido");
 		}
 	}
 

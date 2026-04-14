@@ -5,7 +5,7 @@ namespace SecureHub_Backend.Controllers
 {
 	[ApiController]
 	[Route("[controller]")]
-	[Authorize]
+	[Authorize(Roles = "admin_api_role")]
 	public class WeatherForecastController : ControllerBase
 	{
 		private static readonly string[] Summaries =
