@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using SecureHub_Backend.context;
+using SecureHub.Infrastructure.Persistence;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -32,8 +32,6 @@ builder.Services.AddDbContext<SecureHubDbContext>(options =>
 var keycloakConfig = builder.Configuration.GetSection("Keycloak");
 var authority = keycloakConfig["Authority"];
 var audience = keycloakConfig["Audience"];
-
-// Precargar claves JWKS
 JsonWebKeySet jwks = null;
 var handler = new HttpClientHandler
 {
@@ -61,8 +59,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 			RoleClaimType = ClaimTypes.Role,
 			ClockSkew = TimeSpan.FromMinutes(5)
 		};
-
-		// 🔧 IMPORTANTE: Leer el token del header
 		options.Events = new JwtBearerEvents
 		{
 			OnMessageReceived = context =>
@@ -98,8 +94,6 @@ app.Use(async (context, next) =>
 	if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
 	{
 		var token = authHeader.Substring("Bearer ".Length);
-
-		// Validar token manualmente y crear el usuario
 		var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
 		var validationParameters = new TokenValidationParameters
 		{
@@ -138,38 +132,16 @@ app.Use(async (context, next) =>
 		}
 		catch (Exception ex)
 		{
-			throw new Exception("Token no valido");
+			throw new Exception("Token no valido", ex);
 		}
 	}
 
 	await next();
 });
 
-// NO uses app.UseAuthentication() si usas el middleware manual
-// app.UseAuthentication();  ← Comenta esto
 app.UseAuthorization();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Endpoint de prueba público
-app.MapGet("/api/auth-test", (HttpContext context) =>
-{
-	var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
-	var userName = context.User.Identity?.Name;
-
-	return Results.Ok(new
-	{
-		isAuthenticated = isAuthenticated,
-		userName = userName,
-		message = isAuthenticated ? "Token válido" : "No hay token o es inválido"
-	});
-});
-
-// Endpoint protegido
-app.MapGet("/api/protected", [Microsoft.AspNetCore.Authorization.Authorize] () =>
-{
-	return Results.Ok(new { message = "Acceso concedido al endpoint protegido" });
-});
 
 app.Run();

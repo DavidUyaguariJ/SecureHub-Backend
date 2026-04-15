@@ -1,6 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
-namespace SecureHub_Backend.context
+namespace SecureHub.Infrastructure.Persistence
 {
 	public class SecureHubDbContext: DbContext
 	{
