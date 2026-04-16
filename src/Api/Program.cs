@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SecureHub.Application.Interfaces;
+using SecureHub.Application.UsesCases.RegisterSubject;
+using SecureHub.Infrastructure.Biometric;
 using SecureHub.Infrastructure.Persistence;
+using SecureHub.Infrastructure.Persistence.Repositories;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -17,6 +21,12 @@ builder.Configuration
 	.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
 	.AddJsonFile($"appsettings.{envFile}.json", optional: true)
 	.AddEnvironmentVariables();
+
+builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
+builder.Services.AddScoped<IBiometricProcessor, PcaBiometricProcessor>();
+builder.Services.AddScoped<RegisterSubjectUseCase>();
 
 var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
 var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "devuser";
