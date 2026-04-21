@@ -6,6 +6,7 @@ using SecureHub.Application.UsesCases.RegisterSubject;
 using SecureHub.Infrastructure.Biometric;
 using SecureHub.Infrastructure.Persistence;
 using SecureHub.Infrastructure.Persistence.Repositories;
+using SecureHub.Infrastructure.Security;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -27,11 +28,13 @@ builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
 builder.Services.AddScoped<IBiometricProcessor, PcaBiometricProcessor>();
 builder.Services.AddScoped<RegisterSubjectUseCase>();
+builder.Services.AddScoped<IEncryptionService, AesEncryptionService>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
-var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
-var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "devuser";
-var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "devpass";
-var dbName = builder.Configuration["Database:Name"] ?? "securehubdb";
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "ep-divine-heart-anddt3oz-pooler.c-6.us-east-1.aws.neon.tech";
+var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "neondb_owner";
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "npg_6yIFAw4geKkz";
+var dbName = builder.Configuration["Database:Name"] ?? "securehub_des";
 var dbPort = builder.Configuration["Database:Port"] ?? "5432";
 
 var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
@@ -84,6 +87,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	});
 
 builder.Services.AddAuthorization();
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("AllowAll",
+		policy =>
+		{
+			policy.AllowAnyOrigin()
+				  .AllowAnyHeader()
+				  .AllowAnyMethod();
+		});
+});
+
+builder.Services.AddControllers();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -96,7 +111,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-// Reemplaza el app.UseAuthentication() con este middleware manual
+app.UseCors("AllowAll");
 app.Use(async (context, next) =>
 {
 	var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
