@@ -1,7 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using SecureHub_Backend.context;
+using SecureHub.Application.Interfaces;
+using SecureHub.Application.UsesCases.RegisterSubject;
+using SecureHub.Infrastructure.Biometric;
+using SecureHub.Infrastructure.Persistence;
+using SecureHub.Infrastructure.Persistence.Repositories;
+using SecureHub.Infrastructure.Security;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -18,10 +23,18 @@ builder.Configuration
 	.AddJsonFile($"appsettings.{envFile}.json", optional: true)
 	.AddEnvironmentVariables();
 
-var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
-var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "devuser";
-var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "devpass";
-var dbName = builder.Configuration["Database:Name"] ?? "securehubdb";
+builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
+builder.Services.AddScoped<IBiometricProcessor, PcaBiometricProcessor>();
+builder.Services.AddScoped<RegisterSubjectUseCase>();
+builder.Services.AddScoped<IEncryptionService, AesEncryptionService>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "ep-divine-heart-anddt3oz-pooler.c-6.us-east-1.aws.neon.tech";
+var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "neondb_owner";
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "npg_6yIFAw4geKkz";
+var dbName = builder.Configuration["Database:Name"] ?? "securehub_des";
 var dbPort = builder.Configuration["Database:Port"] ?? "5432";
 
 var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
@@ -32,8 +45,6 @@ builder.Services.AddDbContext<SecureHubDbContext>(options =>
 var keycloakConfig = builder.Configuration.GetSection("Keycloak");
 var authority = keycloakConfig["Authority"];
 var audience = keycloakConfig["Audience"];
-
-// Precargar claves JWKS
 JsonWebKeySet jwks = null;
 var handler = new HttpClientHandler
 {
@@ -61,8 +72,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 			RoleClaimType = ClaimTypes.Role,
 			ClockSkew = TimeSpan.FromMinutes(5)
 		};
-
-		// 🔧 IMPORTANTE: Leer el token del header
 		options.Events = new JwtBearerEvents
 		{
 			OnMessageReceived = context =>
@@ -78,6 +87,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	});
 
 builder.Services.AddAuthorization();
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("AllowAll",
+		policy =>
+		{
+			policy.AllowAnyOrigin()
+				  .AllowAnyHeader()
+				  .AllowAnyMethod();
+		});
+});
+
+builder.Services.AddControllers();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -90,7 +111,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-// Reemplaza el app.UseAuthentication() con este middleware manual
+app.UseCors("AllowAll");
 app.Use(async (context, next) =>
 {
 	var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
@@ -98,8 +119,6 @@ app.Use(async (context, next) =>
 	if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
 	{
 		var token = authHeader.Substring("Bearer ".Length);
-
-		// Validar token manualmente y crear el usuario
 		var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
 		var validationParameters = new TokenValidationParameters
 		{
@@ -117,42 +136,37 @@ app.Use(async (context, next) =>
 		try
 		{
 			var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
+			var identity = principal.Identity as ClaimsIdentity;
+			var resourceAccessClaim = principal.FindFirst("resource_access")?.Value;
+			if (resourceAccessClaim != null)
+			{
+				var resourceAccess = JsonDocument.Parse(resourceAccessClaim);
+				if (resourceAccess.RootElement.TryGetProperty("SecureHub-Api", out var client))
+				{
+					if (client.TryGetProperty("roles", out var roles))
+					{
+						foreach (var role in roles.EnumerateArray())
+						{
+							identity.AddClaim(new Claim(ClaimTypes.Role, role.GetString()));
+						}
+					}
+				}
+			}
+
 			context.User = principal;
 		}
 		catch (Exception ex)
 		{
-			// Token inválido
+			throw new Exception("Token no valido", ex);
 		}
 	}
 
 	await next();
 });
 
-// NO uses app.UseAuthentication() si usas el middleware manual
-// app.UseAuthentication();  ← Comenta esto
 app.UseAuthorization();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Endpoint de prueba público
-app.MapGet("/api/auth-test", (HttpContext context) =>
-{
-	var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
-	var userName = context.User.Identity?.Name;
-
-	return Results.Ok(new
-	{
-		isAuthenticated = isAuthenticated,
-		userName = userName,
-		message = isAuthenticated ? "Token válido" : "No hay token o es inválido"
-	});
-});
-
-// Endpoint protegido
-app.MapGet("/api/protected", [Microsoft.AspNetCore.Authorization.Authorize] () =>
-{
-	return Results.Ok(new { message = "Acceso concedido al endpoint protegido" });
-});
 
 app.Run();
