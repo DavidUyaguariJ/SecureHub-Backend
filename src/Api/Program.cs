@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.RegisterSubject;
-using SecureHub.Infrastructure.Biometric;
 using SecureHub.Infrastructure.Biometrics;
 using SecureHub.Infrastructure.Persistence;
 using SecureHub.Infrastructure.Persistence.Repositories;
