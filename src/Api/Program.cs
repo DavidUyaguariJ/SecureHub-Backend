@@ -46,8 +46,11 @@ var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username=
 builder.Services.AddDbContext<SecureHubDbContext>(options =>
 	options.UseNpgsql(connectionString)
 );
-var arcFaceModelPath = Path.Combine(AppContext.BaseDirectory, "Models", "arcfaceresnet100-8.onnx");
-var detectorModelPath = Path.Combine(AppContext.BaseDirectory, "Models", "version-RFB-320.onnx");
+var modelsPath = Path.Combine(AppContext.BaseDirectory, "models");
+await ModelDownloader.EnsureModelsAsync(modelsPath);
+
+var arcFaceModelPath = Path.Combine(modelsPath, "arcfaceresnet100-8.onnx");
+var detectorModelPath = Path.Combine(modelsPath, "version-RFB-320.onnx");
 
 builder.Services.AddSingleton<IBiometricProcessor>(
 	new ArcFaceProcessor(arcFaceModelPath, detectorModelPath));
