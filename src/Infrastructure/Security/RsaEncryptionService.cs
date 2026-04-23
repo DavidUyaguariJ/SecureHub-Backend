@@ -11,18 +11,52 @@ namespace SecureHub.Infrastructure.Security
 		private readonly RSA _rsaPublic;
 		private readonly RSA _rsaPrivate;
 
-		public RsaEncryptionService(string publicKeyBase64, string privateKeyBase64)
+		public RsaEncryptionService(string publicKey, string privateKey)
 		{
 			_rsaPublic = RSA.Create();
 			_rsaPrivate = RSA.Create();
 
-			_rsaPublic.ImportSubjectPublicKeyInfo(Convert.FromBase64String(publicKeyBase64), out _);
-			_rsaPrivate.ImportPkcs8PrivateKey(Convert.FromBase64String(privateKeyBase64), out _);
+			ImportPublicKey(_rsaPublic, publicKey);
+			ImportPrivateKey(_rsaPrivate, privateKey);
+		}
+
+		private static void ImportPublicKey(RSA rsa, string key)
+		{
+			if (string.IsNullOrWhiteSpace(key))
+				throw new ArgumentException("Public key is null or empty");
+
+			if (key.Contains("BEGIN PUBLIC KEY"))
+			{
+				rsa.ImportFromPem(key.ToCharArray());
+			}
+			else
+			{
+				var bytes = Convert.FromBase64String(key);
+				rsa.ImportSubjectPublicKeyInfo(bytes, out _);
+			}
+		}
+
+		private static void ImportPrivateKey(RSA rsa, string key)
+		{
+			if (string.IsNullOrWhiteSpace(key))
+				throw new ArgumentException("Private key is null or empty");
+
+			if (key.Contains("BEGIN"))
+			{
+				rsa.ImportFromPem(key.ToCharArray());
+			}
+			else
+			{
+				var bytes = Convert.FromBase64String(key);
+				rsa.ImportPkcs8PrivateKey(bytes, out _);
+			}
 		}
 
 		public string Encrypt(string plainText)
 		{
-			if (string.IsNullOrEmpty(plainText)) return plainText;
+			if (string.IsNullOrEmpty(plainText))
+				return plainText;
+
 			var bytes = Encoding.UTF8.GetBytes(plainText);
 			var encrypted = _rsaPublic.Encrypt(bytes, RSAEncryptionPadding.OaepSHA256);
 			return Convert.ToBase64String(encrypted);
@@ -30,7 +64,9 @@ namespace SecureHub.Infrastructure.Security
 
 		public string Decrypt(string cipherText)
 		{
-			if (string.IsNullOrEmpty(cipherText)) return cipherText;
+			if (string.IsNullOrEmpty(cipherText))
+				return cipherText;
+
 			var bytes = Convert.FromBase64String(cipherText);
 			var decrypted = _rsaPrivate.Decrypt(bytes, RSAEncryptionPadding.OaepSHA256);
 			return Encoding.UTF8.GetString(decrypted);
@@ -44,9 +80,12 @@ namespace SecureHub.Infrastructure.Security
 			aes.GenerateIV();
 
 			var encryptedAesKey = _rsaPublic.Encrypt(aes.Key, RSAEncryptionPadding.OaepSHA256);
+
 			using var encryptor = aes.CreateEncryptor();
 			var encryptedData = encryptor.TransformFinalBlock(data, 0, data.Length);
+
 			var result = new byte[4 + encryptedAesKey.Length + 16 + encryptedData.Length];
+
 			BitConverter.GetBytes(encryptedAesKey.Length).CopyTo(result, 0);
 			encryptedAesKey.CopyTo(result, 4);
 			aes.IV.CopyTo(result, 4 + encryptedAesKey.Length);
@@ -58,6 +97,7 @@ namespace SecureHub.Infrastructure.Security
 		public byte[] DecryptBytes(byte[] encryptedData)
 		{
 			var keyLength = BitConverter.ToInt32(encryptedData, 0);
+
 			var encryptedAesKey = encryptedData[4..(4 + keyLength)];
 			var iv = encryptedData[(4 + keyLength)..(4 + keyLength + 16)];
 			var data = encryptedData[(4 + keyLength + 16)..];
@@ -78,9 +118,11 @@ namespace SecureHub.Infrastructure.Security
 			aes.KeySize = 256;
 			aes.GenerateKey();
 			aes.GenerateIV();
+
 			using var encryptor = aes.CreateEncryptor();
 			var encryptedBytes = encryptor.TransformFinalBlock(
-				Encoding.UTF8.GetBytes(password), 0, Encoding.UTF8.GetBytes(password).Length);
+				Encoding.UTF8.GetBytes(password), 0, password.Length);
+
 			return (encryptedBytes, aes.IV);
 		}
 
