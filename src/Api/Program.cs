@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.RegisterSubject;
 using SecureHub.Infrastructure.Biometric;
+using SecureHub.Infrastructure.Biometrics;
 using SecureHub.Infrastructure.Persistence;
 using SecureHub.Infrastructure.Persistence.Repositories;
 using SecureHub.Infrastructure.Security;
@@ -46,14 +47,8 @@ var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username=
 builder.Services.AddDbContext<SecureHubDbContext>(options =>
 	options.UseNpgsql(connectionString)
 );
-var modelsPath = Path.Combine(AppContext.BaseDirectory, "models");
-await ModelDownloader.EnsureModelsAsync(modelsPath);
 
-var arcFaceModelPath = Path.Combine(modelsPath, "arcfaceresnet100-8.onnx");
-var detectorModelPath = Path.Combine(modelsPath, "version-RFB-320.onnx");
-
-builder.Services.AddSingleton<IBiometricProcessor>(
-	new ArcFaceProcessor(arcFaceModelPath, detectorModelPath));
+builder.Services.AddSingleton<IBiometricProcessor, LbphFaceProcessor>();
 var keycloakConfig = builder.Configuration.GetSection("Keycloak");
 var authority = keycloakConfig["Authority"];
 var audience = keycloakConfig["Audience"];
