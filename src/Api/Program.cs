@@ -27,10 +27,10 @@ builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
 builder.Services.AddScoped<RegisterSubjectUseCase>();
-builder.Services.AddScoped<IEncryptionService, RsaEncryptionService>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 var rsaPublicKey = Environment.GetEnvironmentVariable("RSA_PUBLIC_KEY")
 	?? throw new InvalidOperationException("RSA_PUBLIC_KEY no configurada");
+
 var rsaPrivateKey = Environment.GetEnvironmentVariable("RSA_PRIVATE_KEY")
 	?? throw new InvalidOperationException("RSA_PRIVATE_KEY no configurada");
 
@@ -105,7 +105,6 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
-builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
@@ -171,8 +170,6 @@ app.Use(async (context, next) =>
 });
 
 app.UseAuthorization();
-app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
