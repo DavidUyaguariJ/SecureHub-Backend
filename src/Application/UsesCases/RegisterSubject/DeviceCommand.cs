@@ -10,7 +10,7 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 		public string? Brand { get; set; }
 		public string? Model { get; set; }
 		public string? SerialNumber { get; set; }
-		public string? SystemUser { get; set; }
 		public string Password { get; set; } = string.Empty;
+		public string SystemUser { get; set; } = string.Empty;
 	}
 }

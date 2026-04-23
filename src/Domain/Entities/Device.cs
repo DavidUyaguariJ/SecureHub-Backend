@@ -8,12 +8,13 @@ namespace SecureHub.Domain.Entities
 	{
 		public Guid Id { get; private set; }
 		public Guid SubjectId { get; private set; }
-		public string DeviceType { get; private set; }
+		public string DeviceType { get; private set; } = null!;
 		public string? Brand { get; private set; }
 		public string? Model { get; private set; }
 		public string? SerialNumber { get; private set; }
+		public bool IsDeleted { get; private set; }
+		public DateTime? DeletedAt { get; private set; }
 		public DateTime CreatedAt { get; private set; }
-
 		public Subject Subject { get; private set; } = null!;
 		public DeviceCredential? Credential { get; private set; }
 
@@ -26,11 +27,6 @@ namespace SecureHub.Domain.Entities
 			string? model = null,
 			string? serialNumber = null)
 		{
-			if (subjectId == Guid.Empty)
-				throw new ArgumentException("SubjectId es requerido");
-			if (string.IsNullOrWhiteSpace(deviceType))
-				throw new ArgumentException("DeviceType es requerido");
-
 			return new Device
 			{
 				Id = Guid.NewGuid(),
@@ -39,8 +35,15 @@ namespace SecureHub.Domain.Entities
 				Brand = brand,
 				Model = model,
 				SerialNumber = serialNumber,
+				IsDeleted = false,
 				CreatedAt = DateTime.UtcNow
 			};
+		}
+
+		public void SoftDelete()
+		{
+			IsDeleted = true;
+			DeletedAt = DateTime.UtcNow;
 		}
 	}
 }

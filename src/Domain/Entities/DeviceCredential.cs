@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SecureHub.Domain.Entities
 {
@@ -9,14 +7,29 @@ namespace SecureHub.Domain.Entities
 		public Guid Id { get; private set; }
 		public Guid DeviceId { get; private set; }
 		public string? SystemUser { get; private set; }
-		public byte[] EncryptedPassword { get; private set; }
-		public byte[] EncryptionIV { get; private set; }
+		public string EncryptedPassword { get; private set; } = null!;
+		public string? EncryptionIV { get; private set; }
 		public DateTime UpdatedAt { get; private set; }
 
 		public Device Device { get; private set; } = null!;
 
 		private DeviceCredential() { }
 
+		public static DeviceCredential CreateRsa(
+			Guid deviceId,
+			string encryptedPassword,
+			string? systemUser = null)
+		{
+			return new DeviceCredential
+			{
+				Id = Guid.NewGuid(),
+				DeviceId = deviceId,
+				EncryptedPassword = encryptedPassword,
+				SystemUser = systemUser,
+				EncryptionIV = null,
+				UpdatedAt = DateTime.UtcNow
+			};
+		}
 		public static DeviceCredential Create(
 			Guid deviceId,
 			byte[] encryptedPassword,
@@ -27,9 +40,9 @@ namespace SecureHub.Domain.Entities
 			{
 				Id = Guid.NewGuid(),
 				DeviceId = deviceId,
+				EncryptedPassword = Convert.ToBase64String(encryptedPassword),
+				EncryptionIV = Convert.ToBase64String(encryptionIV),
 				SystemUser = systemUser,
-				EncryptedPassword = encryptedPassword,
-				EncryptionIV = encryptionIV,
 				UpdatedAt = DateTime.UtcNow
 			};
 		}

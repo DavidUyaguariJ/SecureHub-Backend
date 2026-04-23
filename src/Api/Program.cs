@@ -26,11 +26,16 @@ builder.Configuration
 builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
-builder.Services.AddScoped<IBiometricProcessor, PcaBiometricProcessor>();
 builder.Services.AddScoped<RegisterSubjectUseCase>();
-builder.Services.AddScoped<IEncryptionService, AesEncryptionService>();
+builder.Services.AddScoped<IEncryptionService, RsaEncryptionService>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+var rsaPublicKey = Environment.GetEnvironmentVariable("RSA_PUBLIC_KEY")
+	?? throw new InvalidOperationException("RSA_PUBLIC_KEY no configurada");
+var rsaPrivateKey = Environment.GetEnvironmentVariable("RSA_PRIVATE_KEY")
+	?? throw new InvalidOperationException("RSA_PRIVATE_KEY no configurada");
 
+builder.Services.AddSingleton<IEncryptionService>(
+	new RsaEncryptionService(rsaPublicKey, rsaPrivateKey));
 var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "ep-divine-heart-anddt3oz-pooler.c-6.us-east-1.aws.neon.tech";
 var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "neondb_owner";
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "npg_6yIFAw4geKkz";
@@ -41,7 +46,11 @@ var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username=
 builder.Services.AddDbContext<SecureHubDbContext>(options =>
 	options.UseNpgsql(connectionString)
 );
+var arcFaceModelPath = Path.Combine(AppContext.BaseDirectory, "models", "arcfaceresnet100-8.onnx");
+var detectorModelPath = Path.Combine(AppContext.BaseDirectory, "models", "version-RFB-320.onnx");
 
+builder.Services.AddSingleton<IBiometricProcessor>(
+	new ArcFaceProcessor(arcFaceModelPath, detectorModelPath));
 var keycloakConfig = builder.Configuration.GetSection("Keycloak");
 var authority = keycloakConfig["Authority"];
 var audience = keycloakConfig["Audience"];

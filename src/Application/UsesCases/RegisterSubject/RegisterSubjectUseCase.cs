@@ -16,7 +16,8 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 		private readonly IEncryptionService _encryptionService;
 		private readonly IUnitOfWork _unitOfWork;
 
-		public RegisterSubjectUseCase(ISubjectRepository subjectRepository, IDeviceRepository deviceRepository, IBiometricAuthRepository biometricRepository, IBiometricProcessor biometricProcessor, IEncryptionService encryptionService, IUnitOfWork unitOfWork)
+		public RegisterSubjectUseCase(ISubjectRepository subjectRepository, IDeviceRepository deviceRepository, IBiometricAuthRepository biometricRepository, IBiometricProcessor biometricProcessor,
+			IEncryptionService encryptionService,IUnitOfWork unitOfWork)
 		{
 			_subjectRepository = subjectRepository;
 			_deviceRepository = deviceRepository;
@@ -39,15 +40,14 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 				var existingEmail = await _subjectRepository.GetByEmailAsync(command.Email);
 				if (existingEmail != null)
 					throw new InvalidOperationException("Ya existe un sujeto con ese email");
-
 				var subject = Subject.Create(
-					command.Identification,
-					command.FullName,
-					command.Email,
-					command.Phone,
-					command.Address,
+					_encryptionService.Encrypt(command.Identification),
+					_encryptionService.Encrypt(command.FullName),
+					_encryptionService.Encrypt(command.Email),
+					command.Phone != null ? _encryptionService.Encrypt(command.Phone) : null,
+					command.Address != null ? _encryptionService.Encrypt(command.Address) : null,
 					command.SubjectType,
-					command.ContactPerson
+					command.ContactPerson != null ? _encryptionService.Encrypt(command.ContactPerson) : null
 				);
 
 				await _subjectRepository.AddAsync(subject);
@@ -59,24 +59,20 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 					var device = Device.Create(
 						subject.Id,
 						deviceCmd.DeviceType,
-						deviceCmd.Brand,
-						deviceCmd.Model,
-						deviceCmd.SerialNumber
+						deviceCmd.Brand != null ? _encryptionService.Encrypt(deviceCmd.Brand) : null,
+						deviceCmd.Model != null ? _encryptionService.Encrypt(deviceCmd.Model) : null,
+						deviceCmd.SerialNumber != null ? _encryptionService.Encrypt(deviceCmd.SerialNumber) : null
 					);
 
 					await _deviceRepository.AddAsync(device);
 
-					var (encryptedPassword, iv) = _encryptionService.Encrypt(deviceCmd.Password);
-
-					var credential = DeviceCredential.Create(
+					var credential = DeviceCredential.CreateRsa(
 						device.Id,
-						encryptedPassword,
-						iv,
-						deviceCmd.SystemUser
+						_encryptionService.Encrypt(deviceCmd.Password),
+						_encryptionService.Encrypt(deviceCmd.SystemUser)
 					);
 
 					await _deviceRepository.AddCredentialAsync(credential);
-
 					deviceResponses.Add(new DeviceResponse
 					{
 						DeviceId = device.Id,
@@ -84,19 +80,31 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 						SerialNumber = device.SerialNumber
 					});
 				}
+				var embeddingResult = await _biometricProcessor.ExtractEmbeddingAsync(
+					command.BiometricImageBase64);
 
-				var biometricVector = _biometricProcessor.ProcessImage(command.BiometricImageBase64);
+				if (!embeddingResult.FaceDetected)
+					throw new InvalidOperationException(
+						"No se detectó un rostro válido en la imagen biométrica");
+				var embeddingBytes = _biometricProcessor.SerializeEmbedding(embeddingResult.Embedding);
+				var encryptedBiometricVector = _encryptionService.EncryptBytes(embeddingBytes);
+				var encryptedConsentText = _encryptionService.Encrypt(command.ConsentText);
+				var encryptedDigitalSig = command.DigitalSignature != null
+					? _encryptionService.Encrypt(command.DigitalSignature)
+					: null;
 
 				var biometric = BiometricAuth.Create(
-					subject.Id,
-					biometricVector,
-					command.ConsentText,
-					command.TemplateType,
-					command.DigitalSignature
+					subjectId: subject.Id,
+					biometricVector: encryptedBiometricVector,
+					consentText: encryptedConsentText,
+					templateType: command.TemplateType ?? "ARCFACE_512",
+					digitalSignature: encryptedDigitalSig,
+					embeddingModel: embeddingResult.ModelUsed,
+					embeddingDims: embeddingResult.Dimensions,
+					confidenceScore: embeddingResult.DetectionScore
 				);
 
 				await _biometricRepository.AddAsync(biometric);
-
 				await _unitOfWork.CommitAsync();
 
 				return new RegisterSubjectResponse

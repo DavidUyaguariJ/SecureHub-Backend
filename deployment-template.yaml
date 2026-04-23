@@ -24,9 +24,33 @@ spec:
               value: "${ASPNETCORE_ENVIRONMENT}"
             - name: DB_HOST
               valueFrom:
+                configMapKeyRef:
+                  name: backend-config-${NAMESPACE}
+                  key: db-host
+            - name: DB_USER
+              valueFrom:
                 secretKeyRef:
                   name: backend-secrets-${NAMESPACE}
-                  key: db-host
+                  key: db-user
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets-${NAMESPACE}
+                  key: db-password
+
+            - name: RSA_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets-${NAMESPACE}
+                  key: rsa-public-key
+
+            - name: RSA_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets-${NAMESPACE}
+                  key: rsa-private-key
+
           resources:
             requests:
               memory: "256Mi"
@@ -34,16 +58,3 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend
-  namespace: ${NAMESPACE}
-spec:
-  type: ClusterIP
-  selector:
-    app: backend
-  ports:
-    - port: 80
-      targetPort: 8080

@@ -6,6 +6,12 @@ namespace SecureHub.Application.Interfaces
 {
 	public interface IEncryptionService
 	{
-		(byte[] encryptedPassword, byte[] iv) Encrypt(string plainPassword);
+		string Encrypt(string plainText);
+		string Decrypt(string cipherText);
+		byte[] EncryptBytes(byte[] data);
+		byte[] DecryptBytes(byte[] encryptedData);
+		(byte[] encryptedPassword, byte[] iv) EncryptPassword(string password);
+		string DecryptPassword(byte[] encryptedPassword, byte[] iv);
 	}
 }
+
