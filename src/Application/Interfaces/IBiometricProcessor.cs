@@ -6,7 +6,18 @@ namespace SecureHub.Application.Interfaces
 {
 	public interface IBiometricProcessor
 	{
-		byte[] ProcessImage(string base64Image);
-		double CompareBiometrics(byte[] stored, byte[] incoming);
+		Task<FaceEmbeddingResult> ExtractEmbeddingAsync(string imageBase64);
+		float CompareFaces(byte[] storedEmbedding, byte[] candidateEmbedding);
+		byte[] SerializeEmbedding(float[] embedding);
+		float[] DeserializeEmbedding(byte[] data);
+	}
+
+	public class FaceEmbeddingResult
+	{
+		public float[] Embedding { get; set; } = [];
+		public string ModelUsed { get; set; } = string.Empty;
+		public int Dimensions { get; set; }
+		public float DetectionScore { get; set; }
+		public bool FaceDetected => DetectionScore > 0.5f;
 	}
 }

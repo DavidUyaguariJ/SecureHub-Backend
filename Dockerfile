@@ -14,11 +14,16 @@ RUN dotnet build "Api/Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "Api/Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Api/Api.csproj" \
+    -c $BUILD_CONFIGURATION \
+    -o /app/publish \
+    /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+COPY src/Infrastructure/Biometrics/models/ ./models/
 
 ARG ASPNETCORE_ENVIRONMENT=Development
 ENV ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}

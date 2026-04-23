@@ -7,13 +7,15 @@ namespace SecureHub.Domain.Entities
 	public class Subject
 	{
 		public Guid Id { get; private set; }
-		public string Identification { get; private set; }
-		public string FullName { get; private set; }
+		public string Identification { get; private set; } = null!;
+		public string FullName { get; private set; } = null!;
 		public string? Phone { get; private set; }
 		public string? Address { get; private set; }
-		public string Email { get; private set; }
+		public string Email { get; private set; } = null!;
 		public string? SubjectType { get; private set; }
 		public string? ContactPerson { get; private set; }
+		public bool IsDeleted { get; private set; }
+		public DateTime? DeletedAt { get; private set; }
 		public DateTime CreatedAt { get; private set; }
 
 		public ICollection<Device> Devices { get; private set; } = new List<Device>();
@@ -30,15 +32,6 @@ namespace SecureHub.Domain.Entities
 			string? subjectType = null,
 			string? contactPerson = null)
 		{
-			if (string.IsNullOrWhiteSpace(identification))
-				throw new ArgumentException("Identification es requerida");
-			if (string.IsNullOrWhiteSpace(fullName))
-				throw new ArgumentException("FullName es requerido");
-			if (string.IsNullOrWhiteSpace(email))
-				throw new ArgumentException("Email es requerido");
-			if (subjectType != null && subjectType != "PERSONA" && subjectType != "EMPRESA")
-				throw new ArgumentException("SubjectType debe ser PERSONA o EMPRESA");
-
 			return new Subject
 			{
 				Id = Guid.NewGuid(),
@@ -49,8 +42,15 @@ namespace SecureHub.Domain.Entities
 				Address = address,
 				SubjectType = subjectType,
 				ContactPerson = contactPerson,
+				IsDeleted = false,
 				CreatedAt = DateTime.UtcNow
 			};
+		}
+
+		public void SoftDelete()
+		{
+			IsDeleted = true;
+			DeletedAt = DateTime.UtcNow;
 		}
 	}
 }
