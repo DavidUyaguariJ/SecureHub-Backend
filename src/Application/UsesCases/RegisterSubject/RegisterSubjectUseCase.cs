@@ -97,7 +97,7 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 					subjectId: subject.Id,
 					biometricVector: encryptedBiometricVector,
 					consentText: encryptedConsentText,
-					templateType: command.TemplateType ?? "ARCFACE_512",
+					templateType: command.TemplateType ?? "LBPH_256",
 					digitalSignature: encryptedDigitalSig,
 					embeddingModel: embeddingResult.ModelUsed,
 					embeddingDims: embeddingResult.Dimensions,
