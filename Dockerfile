@@ -23,7 +23,7 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-COPY src/Infrastructure/Biometric/Models/ ./Models/
+COPY src/Infrastructure/Biometric/Models/ ./models/
 
 ARG ASPNETCORE_ENVIRONMENT=Development
 ENV ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}

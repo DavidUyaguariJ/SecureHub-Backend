@@ -59,3 +59,4 @@ appsettings.Development.json
 *.PublishSettings
 *.pubxml
 *.pubxml.user
+**/models/*.onnx
