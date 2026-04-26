@@ -1,0 +1,116 @@
+﻿using SecureHub.Application.Interfaces;
+using SecureHub.Application.UsesCases.Arco.Dtos;
+using SecureHub.Domain.Entities;
+using SecureHub.Infrastructure.Persistence.Repositories;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace SecureHub.Application.UsesCases.Arco
+{
+	public class CreateArcoRequestUseCase
+	{
+		private const float FaceMatchThreshold = 0.40f;
+
+		private readonly IArcoRequestRepository _arcoRepo;
+		private readonly IArcoAuditLogRepository _auditRepo;
+		private readonly IBiometricAuthRepository _biometricRepo;
+		private readonly IBiometricProcessor _biometricProcessor;
+		private readonly ISubjectRepository _subjectRepo;
+		private readonly IEncryptionService _encryptionService;
+		private readonly IUnitOfWork _unitOfWork;
+
+		public CreateArcoRequestUseCase(
+			IArcoRequestRepository arcoRepo,
+			IArcoAuditLogRepository auditRepo,
+			IBiometricAuthRepository biometricRepo,
+			IBiometricProcessor biometricProcessor,
+			ISubjectRepository subjectRepo,
+			IEncryptionService encryptionService,
+			IUnitOfWork unitOfWork)
+		{
+			_arcoRepo = arcoRepo;
+			_auditRepo = auditRepo;
+			_biometricRepo = biometricRepo;
+			_biometricProcessor = biometricProcessor;
+			_subjectRepo = subjectRepo;
+			_encryptionService = encryptionService;
+			_unitOfWork = unitOfWork;
+		}
+
+		public async Task<ArcoRequestResponseDto> ExecuteAsync(
+			CreateArcoRequestDto dto, string requesterIp, CancellationToken ct = default)
+		{
+			await _unitOfWork.BeginTransactionAsync();
+			try
+			{
+				var subject = await _subjectRepo.GetByIdAsync(dto.SubjectId, ct)
+					?? throw new InvalidOperationException("Titular no encontrado.");
+				var stored = await _biometricRepo.GetLatestBySubjectIdAsync(dto.SubjectId, ct)
+					?? throw new InvalidOperationException("El titular no tiene datos biométricos registrados.");
+				var decryptedStoredVector = _encryptionService.DecryptBytes(stored.BiometricVector);
+				var embeddingResult = await _biometricProcessor.ExtractEmbeddingAsync(dto.ImageBase64);
+				var candidateBytes = _biometricProcessor.SerializeEmbedding(embeddingResult.Embedding);
+				float score = _biometricProcessor.CompareFaces(decryptedStoredVector, candidateBytes);
+				if (score < FaceMatchThreshold)
+					throw new UnauthorizedAccessException(
+						$"Verificación biométrica fallida. Score: {score:F3}, requerido: {FaceMatchThreshold}");
+				var dueDate = CalculateBusinessDays(DateTimeOffset.UtcNow, 15);
+				var request = new ArcoRequest
+				{
+					SubjectId = dto.SubjectId,
+					RequestType = dto.RequestType,
+					Status = "PENDIENTE",
+					Description = dto.Description,
+					RequestedAt = DateTimeOffset.UtcNow,
+					DueDate = dueDate,
+					CreatedAt = DateTimeOffset.UtcNow
+				};
+
+				await _arcoRepo.AddAsync(request, ct);
+				await _auditRepo.AddAsync(new ArcoAuditLog
+				{
+					ArcoRequestId = request.Id,
+					Action = "CREADO",
+					NewStatus = "PENDIENTE",
+					PerformedByRole = "TITULAR",
+					IpAddress = requesterIp,
+					Notes = $"Tipo: {dto.RequestType} | Score biométrico: {score:F3}",
+					CreatedAt = DateTimeOffset.UtcNow
+				}, ct);
+
+				await _unitOfWork.CommitAsync();
+
+				return new ArcoRequestResponseDto(
+					request.Id,
+					request.SubjectId,
+					subject.FullName,
+					request.RequestType,
+					request.Status,
+					request.Description,
+					request.RequestedAt,
+					request.DueDate,
+					null, null, null,
+					false);
+			}
+			catch
+			{
+				await _unitOfWork.RollbackAsync();
+				throw;
+			}
+		}
+
+		private static DateTimeOffset CalculateBusinessDays(DateTimeOffset start, int days)
+		{
+			var date = start;
+			int added = 0;
+			while (added < days)
+			{
+				date = date.AddDays(1);
+				if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+					added++;
+			}
+			return date;
+		}
+	}
+}
