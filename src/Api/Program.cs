@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SecureHub.Application.Interfaces;
+using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.RegisterSubject;
 using SecureHub.Infrastructure.Biometrics;
 using SecureHub.Infrastructure.Persistence;
@@ -11,6 +12,8 @@ using System.Security.Claims;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Configuración de entorno
 var envFile = builder.Environment.EnvironmentName switch
 {
 	"Development" => "Develop",
@@ -23,19 +26,16 @@ builder.Configuration
 	.AddJsonFile($"appsettings.{envFile}.json", optional: true)
 	.AddEnvironmentVariables();
 
-builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
-builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
-builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
-builder.Services.AddScoped<RegisterSubjectUseCase>();
-builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+// ── Cifrado RSA
 var rsaPublicKey = Environment.GetEnvironmentVariable("RSA_PUBLIC_KEY")
 	?? throw new InvalidOperationException("RSA_PUBLIC_KEY no configurada");
-
 var rsaPrivateKey = Environment.GetEnvironmentVariable("RSA_PRIVATE_KEY")
 	?? throw new InvalidOperationException("RSA_PRIVATE_KEY no configurada");
 
 builder.Services.AddSingleton<IEncryptionService>(
 	new RsaEncryptionService(rsaPublicKey, rsaPrivateKey));
+
+// ── Base de datos
 var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "ep-divine-heart-anddt3oz-pooler.c-6.us-east-1.aws.neon.tech";
 var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "neondb_owner";
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "npg_6yIFAw4geKkz";
@@ -44,17 +44,37 @@ var dbPort = builder.Configuration["Database:Port"] ?? "5432";
 
 var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
 builder.Services.AddDbContext<SecureHubDbContext>(options =>
-	options.UseNpgsql(connectionString)
-);
+	options.UseNpgsql(connectionString));
 
-builder.Services.AddSingleton<IBiometricProcessor, LbphFaceProcessor>();
+// ── Repositorios
+builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
+builder.Services.AddScoped<IArcoRequestRepository, ArcoRequestRepository>();
+builder.Services.AddScoped<IArcoAuditLogRepository, ArcoAuditLogRepository>();
+
+// ── Infraestructura
+builder.Services.AddSingleton<IBiometricProcessor, ArcFaceBiometricProcessor>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+
+// ── Casos de uso: Subject
+builder.Services.AddScoped<RegisterSubjectUseCase>();
+
+// ── Casos de uso: ARCO
+builder.Services.AddScoped<CreateArcoRequestUseCase>();
+builder.Services.AddScoped<UpdateArcoStatusUseCase>();
+builder.Services.AddScoped<GetArcoRequestsUseCase>();
+builder.Services.AddScoped<LookupSubjectUseCase>();
+
+// ── Autenticación Keycloak / JWT
 var keycloakConfig = builder.Configuration.GetSection("Keycloak");
 var authority = keycloakConfig["Authority"];
 var audience = keycloakConfig["Audience"];
-JsonWebKeySet jwks = null;
+
+JsonWebKeySet jwks;
 var handler = new HttpClientHandler
 {
-	ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+	ServerCertificateCustomValidationCallback = (_, _, _, _) => true
 };
 using var httpClient = new HttpClient(handler);
 var jwksUrl = $"{authority}/protocol/openid-connect/certs";
@@ -84,46 +104,39 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 			{
 				var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
 				if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
-				{
-					context.Token = authHeader.Substring("Bearer ".Length);
-				}
+					context.Token = authHeader["Bearer ".Length..];
 				return Task.CompletedTask;
 			}
 		};
 	});
 
 builder.Services.AddAuthorization();
+
+// ── CORS
 builder.Services.AddCors(options =>
 {
-	options.AddPolicy("AllowAll",
-		policy =>
-		{
-			policy.AllowAnyOrigin()
-				  .AllowAnyHeader()
-				  .AllowAnyMethod();
-		});
+	options.AddPolicy("AllowAll", policy =>
+		policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
-
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
-{
 	app.MapOpenApi();
-}
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+
+// ── Middleware: extrae roles de resource_access del JWT Keycloak
 app.Use(async (context, next) =>
 {
 	var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-
 	if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
 	{
-		var token = authHeader.Substring("Bearer ".Length);
+		var token = authHeader["Bearer ".Length..];
 		var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
 		var validationParameters = new TokenValidationParameters
 		{
@@ -142,8 +155,9 @@ app.Use(async (context, next) =>
 		{
 			var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
 			var identity = principal.Identity as ClaimsIdentity;
+
 			var resourceAccessClaim = principal.FindFirst("resource_access")?.Value;
-			if (resourceAccessClaim != null)
+			if (resourceAccessClaim is not null)
 			{
 				var resourceAccess = JsonDocument.Parse(resourceAccessClaim);
 				if (resourceAccess.RootElement.TryGetProperty("SecureHub-Api", out var client))
@@ -152,7 +166,7 @@ app.Use(async (context, next) =>
 					{
 						foreach (var role in roles.EnumerateArray())
 						{
-							identity.AddClaim(new Claim(ClaimTypes.Role, role.GetString()));
+							identity!.AddClaim(new Claim(ClaimTypes.Role, role.GetString()!));
 						}
 					}
 				}
@@ -162,13 +176,14 @@ app.Use(async (context, next) =>
 		}
 		catch (Exception ex)
 		{
-			throw new Exception("Token no valido", ex);
+			throw new Exception("Token no válido", ex);
 		}
 	}
 
 	await next();
 });
 
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

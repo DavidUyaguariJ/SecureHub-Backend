@@ -13,5 +13,9 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 		Task<Subject?> GetByEmailAsync(string email);
 		Task AddAsync(Subject subject);
 		Task SaveChangesAsync();
+
+		Task<Subject?> GetByIdAsync(Guid id, CancellationToken ct);
+		Task<Subject?> GetByIdentificationAsync(string identification, CancellationToken ct);
+		Task<Subject?> FindByDecryptedIdentificationAsync(string identification, CancellationToken ct);
 	}
 }

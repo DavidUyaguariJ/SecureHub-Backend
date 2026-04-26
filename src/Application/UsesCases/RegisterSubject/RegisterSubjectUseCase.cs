@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using SecureHub.Application.Interfaces;
+using SecureHub.Application.UsesCases.RegisterSubject.Dtos;
 using SecureHub.Domain.Entities;
 using SecureHub.Infrastructure.Persistence.Repositories;
 

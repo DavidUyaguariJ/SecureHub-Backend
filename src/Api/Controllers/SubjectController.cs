@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecureHub.Application.UsesCases.RegisterSubject;
+using SecureHub.Application.UsesCases.RegisterSubject.Dtos;
 
 namespace SecureHub.Api.Controllers
 {

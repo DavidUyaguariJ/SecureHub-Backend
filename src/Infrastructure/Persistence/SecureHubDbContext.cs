@@ -11,6 +11,8 @@ namespace SecureHub.Infrastructure.Persistence
 		public DbSet<Device> Devices => Set<Device>();
 		public DbSet<DeviceCredential> DeviceCredentials => Set<DeviceCredential>();
 		public DbSet<BiometricAuth> BiometricAuths => Set<BiometricAuth>();
+		public DbSet<ArcoRequest> ArcoRequests => Set<ArcoRequest>();
+		public DbSet<ArcoAuditLog> ArcoAuditLogs => Set<ArcoAuditLog>();
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -83,6 +85,46 @@ namespace SecureHub.Infrastructure.Persistence
 				e.Property(b => b.DeletedAt).HasColumnName("deleted_at");
 				e.Property(b => b.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 				e.HasQueryFilter(b => !b.IsDeleted);
+			});
+
+			modelBuilder.Entity<ArcoRequest>(e =>
+			{
+				e.ToTable("arco_requests");
+				e.HasKey(r => r.Id);
+				e.Property(r => r.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+				e.Property(r => r.SubjectId).HasColumnName("subject_id").IsRequired();
+				e.Property(r => r.RequestType).HasColumnName("request_type").HasMaxLength(20).IsRequired();
+				e.Property(r => r.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("PENDIENTE");
+				e.Property(r => r.Description).HasColumnName("description").HasColumnType("TEXT");
+				e.Property(r => r.BiometricAuthId).HasColumnName("biometric_auth_id");
+				e.Property(r => r.ResponseText).HasColumnName("response_text").HasColumnType("TEXT");
+				e.Property(r => r.ResponseFilePath).HasColumnName("response_file_path").HasColumnType("TEXT");
+				e.Property(r => r.RejectedReason).HasColumnName("rejected_reason").HasColumnType("TEXT");
+				e.Property(r => r.RequestedAt).HasColumnName("requested_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+				e.Property(r => r.DueDate).HasColumnName("due_date");
+				e.Property(r => r.ResolvedAt).HasColumnName("resolved_at");
+				e.Property(r => r.ResolvedBy).HasColumnName("resolved_by");
+				e.Property(r => r.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+				e.HasOne(r => r.Subject).WithMany().HasForeignKey(r => r.SubjectId);
+				//e.HasOne(r => r.BiometricAuth).WithMany().HasForeignKey(r => r.BiometricAuthId);
+				e.HasMany(r => r.AuditLogs).WithOne(a => a.ArcoRequest).HasForeignKey(a => a.ArcoRequestId).OnDelete(DeleteBehavior.Cascade);
+			});
+
+			modelBuilder.Entity<ArcoAuditLog>(e =>
+			{
+				e.ToTable("arco_audit_log");
+				e.HasKey(a => a.Id);
+				e.Property(a => a.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+				e.Property(a => a.ArcoRequestId).HasColumnName("arco_request_id").IsRequired();
+				e.Property(a => a.Action).HasColumnName("action").HasMaxLength(50).IsRequired();
+				e.Property(a => a.PreviousStatus).HasColumnName("previous_status").HasMaxLength(20);
+				e.Property(a => a.NewStatus).HasColumnName("new_status").HasMaxLength(20);
+				e.Property(a => a.PerformedBy).HasColumnName("performed_by");
+				e.Property(a => a.PerformedByRole).HasColumnName("performed_by_role").HasMaxLength(20);
+				e.Property(a => a.Notes).HasColumnName("notes").HasColumnType("TEXT");
+				e.Property(a => a.IpAddress).HasColumnName("ip_address").HasColumnType("TEXT");
+				e.Property(a => a.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 			});
 
 		}

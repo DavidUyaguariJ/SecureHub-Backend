@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace SecureHub.Application.UsesCases.RegisterSubject
+namespace SecureHub.Application.UsesCases.RegisterSubject.Dtos
 {
 	public class DeviceResponse
 	{
