@@ -1,5 +1,12 @@
 {
   "profiles": {
+    "Local": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Local"
+      },
+      "applicationUrl": "http://localhost:5214;https://localhost:7255"
+    },
     "http": {
       "commandName": "Project",
       "environmentVariables": {

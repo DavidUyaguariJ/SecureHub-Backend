@@ -1,3 +1,13 @@
 <Solution>
-  <Project Path="SecureHub-Backend.csproj" />
+  <Folder Name="/Elementos de la solución/">
+    <File Path="deployment-template.yaml" />
+    <File Path="Dockerfile" />
+    <File Path="Jenkinsfile" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Api/Api.csproj" />
+    <Project Path="src/Application/SecureHub.Application.csproj" />
+    <Project Path="src/Domain/SecureHub.Domain.csproj" />
+    <Project Path="src/Infrastructure/SecureHub.Infrastructure.csproj" />
+  </Folder>
 </Solution>
