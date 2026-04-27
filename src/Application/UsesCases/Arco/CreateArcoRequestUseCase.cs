@@ -5,6 +5,7 @@ using SecureHub.Infrastructure.Persistence.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json;
 
 namespace SecureHub.Application.UsesCases.Arco
 {
@@ -52,22 +53,34 @@ namespace SecureHub.Application.UsesCases.Arco
 				var embeddingResult = await _biometricProcessor.ExtractEmbeddingAsync(dto.ImageBase64);
 				var candidateBytes = _biometricProcessor.SerializeEmbedding(embeddingResult.Embedding);
 				float score = _biometricProcessor.CompareFaces(decryptedStoredVector, candidateBytes);
+
 				if (score < FaceMatchThreshold)
 					throw new UnauthorizedAccessException(
 						$"Verificación biométrica fallida. Score: {score:F3}, requerido: {FaceMatchThreshold}");
+				string? description = dto.Description;
+				if (dto.RequestType == "RECTIFICACION" && dto.UpdatedData is not null)
+				{
+					var updatedJson = JsonSerializer.Serialize(dto.UpdatedData,
+						new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+					description = string.IsNullOrWhiteSpace(dto.Description)
+						? updatedJson
+						: $"{updatedJson}|{dto.Description}";
+				}
 				var dueDate = CalculateBusinessDays(DateTimeOffset.UtcNow, 15);
+
 				var request = new ArcoRequest
 				{
 					SubjectId = dto.SubjectId,
 					RequestType = dto.RequestType,
 					Status = "PENDIENTE",
-					Description = dto.Description,
+					Description = description,
 					RequestedAt = DateTimeOffset.UtcNow,
 					DueDate = dueDate,
 					CreatedAt = DateTimeOffset.UtcNow
 				};
 
 				await _arcoRepo.AddAsync(request, ct);
+
 				await _auditRepo.AddAsync(new ArcoAuditLog
 				{
 					ArcoRequestId = request.Id,

@@ -17,7 +17,12 @@ namespace SecureHub.Application.UsesCases.Arco
 		private readonly IEncryptionService _encryptionService;
 		private readonly IUnitOfWork _unitOfWork;
 
-		public UpdateArcoStatusUseCase(IArcoRequestRepository arcoRepo,IArcoAuditLogRepository auditRepo,ISubjectRepository subjectRepo,IEncryptionService encryptionService,IUnitOfWork unitOfWork)
+		public UpdateArcoStatusUseCase(
+			IArcoRequestRepository arcoRepo,
+			IArcoAuditLogRepository auditRepo,
+			ISubjectRepository subjectRepo,
+			IEncryptionService encryptionService,
+			IUnitOfWork unitOfWork)
 		{
 			_arcoRepo = arcoRepo;
 			_auditRepo = auditRepo;
@@ -45,8 +50,7 @@ namespace SecureHub.Application.UsesCases.Arco
 
 				var validStatuses = new[] { "EN_PROCESO", "COMPLETADO", "RECHAZADO" };
 				if (!validStatuses.Contains(dto.NewStatus))
-					throw new InvalidOperationException(
-						$"Estado no válido: {dto.NewStatus}. Valores permitidos: {string.Join(", ", validStatuses)}");
+					throw new InvalidOperationException($"Estado no válido: {dto.NewStatus}.");
 
 				if (dto.NewStatus == "RECHAZADO" && string.IsNullOrWhiteSpace(dto.RejectedReason))
 					throw new InvalidOperationException("Debe indicar el motivo del rechazo.");
@@ -61,6 +65,7 @@ namespace SecureHub.Application.UsesCases.Arco
 					request.ResolvedAt = DateTimeOffset.UtcNow;
 					request.ResolvedBy = operatorId;
 				}
+
 				if (dto.NewStatus == "COMPLETADO")
 				{
 					var subject = await _subjectRepo.GetByIdAsync(request.SubjectId, ct);
@@ -74,12 +79,16 @@ namespace SecureHub.Application.UsesCases.Arco
 								break;
 
 							case "RECTIFICACION":
-								if (!string.IsNullOrWhiteSpace(dto.ResponseText))
+								if (!string.IsNullOrWhiteSpace(request.Description))
 								{
 									try
 									{
+										var jsonPart = request.Description.Contains('|')
+											? request.Description.Split('|', 2)[0]
+											: request.Description;
+
 										var updateData = JsonSerializer.Deserialize<UpdateSubjectDataDto>(
-											dto.ResponseText,
+											jsonPart,
 											new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
 										if (updateData is not null)
@@ -95,9 +104,19 @@ namespace SecureHub.Application.UsesCases.Arco
 									}
 								}
 								break;
+
+							case "ACCESO":
+								break;
+
+							case "OPOSICION":
+								break;
+
+							case "PORTABILIDAD":
+								break;
 						}
 					}
 				}
+
 				await _auditRepo.AddAsync(new ArcoAuditLog
 				{
 					ArcoRequestId = request.Id,
@@ -114,6 +133,7 @@ namespace SecureHub.Application.UsesCases.Arco
 				}, ct);
 
 				await _unitOfWork.CommitAsync();
+
 				var subjectFinal = await _subjectRepo.GetByIdAsync(request.SubjectId, ct);
 				return new ArcoRequestResponseDto(
 					request.Id,

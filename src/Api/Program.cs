@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SecureHub.Api.Services;
 using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.RegisterSubject;
@@ -47,6 +48,7 @@ builder.Services.AddDbContext<SecureHubDbContext>(options =>
 	options.UseNpgsql(connectionString));
 
 // ── Repositorios
+builder.Services.AddScoped<ArcoResponsePdfService>();
 builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
