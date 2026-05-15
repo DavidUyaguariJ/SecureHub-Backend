@@ -22,7 +22,7 @@ spec:
           env:
             - name: ASPNETCORE_ENVIRONMENT
               value: "${ASPNETCORE_ENVIRONMENT}"
-            - name: DB_HOST
+            - name: db-host
               valueFrom:
                 configMapKeyRef:
                   name: backend-config-${NAMESPACE}
@@ -31,32 +31,32 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: backend-secrets-${NAMESPACE}
-                  key: DB_USER
+                  key: db-user
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: backend-secrets-${NAMESPACE}
-                  key: DB_PASSWORD
+                  key: db-password
             - name: RSA_PUBLIC_KEY
               valueFrom:
                 secretKeyRef:
                   name: backend-secrets-${NAMESPACE}
-                  key: RSA_PUBLIC_KEY
+                  key: rsa-public-key
             - name: RSA_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
                   name: backend-secrets-${NAMESPACE}
-                  key: RSA_PRIVATE_KEY
+                  key: rsa-private-key
             - name: Email__Password
               valueFrom:
                 secretKeyRef:
                   name: backend-secrets-${NAMESPACE}
-                  key: EMAIL_PASSWORD
+                  key: email-password
             - name: Keycloak__AdminSecret
               valueFrom:
                 secretKeyRef:
                   name: backend-secrets-${NAMESPACE}
-                  key: KEYCLOAK_ADMIN_SECRET
+                  key: keycloak-admin-secret
 
           resources:
             requests:

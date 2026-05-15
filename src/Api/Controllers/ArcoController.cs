@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.Arco.Dtos;
 using System.Security.Claims;
-using SecureHub.Infrastructure.Documents;
 
 namespace SecureHub.Api.Controllers
 {
@@ -17,14 +17,14 @@ namespace SecureHub.Api.Controllers
 		private readonly UpdateArcoStatusUseCase _updateStatusUseCase;
 		private readonly GetArcoRequestsUseCase _getUseCase;
 		private readonly LookupSubjectUseCase _lookupUseCase;
-		private readonly ArcoResponsePdfService _pdfService;
+		private readonly IArcoResponsePdfService _pdfService;
 
 		public ArcoRequestController(
 			CreateArcoRequestUseCase createUseCase,
 			UpdateArcoStatusUseCase updateStatusUseCase,
 			GetArcoRequestsUseCase getUseCase,
 			LookupSubjectUseCase lookupUseCase,
-			ArcoResponsePdfService pdfService)
+			IArcoResponsePdfService pdfService)
 		{
 			_createUseCase = createUseCase;
 			_updateStatusUseCase = updateStatusUseCase;
