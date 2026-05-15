@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using SecureHub.Api.Services;
 using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.RegisterSubject;
 using SecureHub.Infrastructure.Biometrics;
+using SecureHub.Infrastructure.EmailSender;
 using SecureHub.Infrastructure.Persistence;
 using SecureHub.Infrastructure.Persistence.Repositories;
 using SecureHub.Infrastructure.Security;
@@ -26,6 +26,24 @@ builder.Configuration
 	.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
 	.AddJsonFile($"appsettings.{envFile}.json", optional: true)
 	.AddEnvironmentVariables();
+
+// HttpClient para Keycloak Admin (ignora SSL autofirmado en dev)
+builder.Services.AddHttpClient("KeycloakAdmin")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+    });
+ 
+// Email
+builder.Services.AddScoped<IEmailService, MailKitEmailService>();
+ 
+// Keycloak user management
+builder.Services.AddScoped<IKeycloakService, KeycloakService>();
+ 
+// Subject Portal use cases (para el titular)
+builder.Services.AddScoped<GetSubjectPortalDataUseCase>();
+builder.Services.AddScoped<RegisterSubjectBiometricUseCase>();
+builder.Services.AddScoped<VerifySubjectBiometricUseCase>();
 
 // ── Cifrado RSA
 var rsaPublicKey = Environment.GetEnvironmentVariable("RSA_PUBLIC_KEY")
@@ -48,7 +66,8 @@ builder.Services.AddDbContext<SecureHubDbContext>(options =>
 	options.UseNpgsql(connectionString));
 
 // ── Repositorios
-builder.Services.AddScoped<ArcoResponsePdfService>();
+builder.Services.AddScoped<IArcoResponsePdfService,
+	SecureHub.Infrastructure.Documents.ArcoResponsePdfService>();
 builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();

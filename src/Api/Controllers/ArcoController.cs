@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using SecureHub.Api.Services;
 using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.Arco.Dtos;
 using System.Security.Claims;
+using SecureHub.Infrastructure.Documents;
 
 namespace SecureHub.Api.Controllers
 {
