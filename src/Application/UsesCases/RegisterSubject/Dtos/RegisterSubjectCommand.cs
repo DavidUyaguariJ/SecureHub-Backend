@@ -14,10 +14,6 @@ namespace SecureHub.Application.UsesCases.RegisterSubject.Dtos
 		public string? SubjectType { get; set; }
 		public string? ContactPerson { get; set; }
 		public List<DeviceCommand> Devices { get; set; } = new();
-		public string BiometricImageBase64 { get; set; } = string.Empty;
-		public string ConsentText { get; set; } = string.Empty;
-		public string? TemplateType { get; set; }
-		public string? DigitalSignature { get; set; }
 	}
 
 }
