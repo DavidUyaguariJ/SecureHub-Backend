@@ -26,7 +26,7 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: backend-config-${NAMESPACE}
-                  key: DB_HOST
+                  key: db-host
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
