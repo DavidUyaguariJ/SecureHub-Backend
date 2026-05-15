@@ -5,6 +5,7 @@ using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.RegisterSubject;
 using SecureHub.Infrastructure.Biometrics;
+using SecureHub.Infrastructure.Documents;
 using SecureHub.Infrastructure.EmailSender;
 using SecureHub.Infrastructure.Persistence;
 using SecureHub.Infrastructure.Persistence.Repositories;
@@ -66,8 +67,7 @@ builder.Services.AddDbContext<SecureHubDbContext>(options =>
 	options.UseNpgsql(connectionString));
 
 // ── Repositorios
-builder.Services.AddScoped<IArcoResponsePdfService,
-	SecureHub.Infrastructure.Documents.ArcoResponsePdfService>();
+builder.Services.AddScoped<IArcoResponsePdfService,ArcoResponsePdfService>();
 builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
