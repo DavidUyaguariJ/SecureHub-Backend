@@ -19,6 +19,7 @@ namespace SecureHub.Application.UsesCases.Arco
 		private readonly IBiometricProcessor _biometricProcessor;
 		private readonly ISubjectRepository _subjectRepo;
 		private readonly IEncryptionService _encryptionService;
+		private readonly IEmailService _emailService;
 		private readonly IUnitOfWork _unitOfWork;
 
 		public CreateArcoRequestUseCase(
@@ -28,6 +29,7 @@ namespace SecureHub.Application.UsesCases.Arco
 			IBiometricProcessor biometricProcessor,
 			ISubjectRepository subjectRepo,
 			IEncryptionService encryptionService,
+			IEmailService emailService,
 			IUnitOfWork unitOfWork)
 		{
 			_arcoRepo = arcoRepo;
@@ -36,6 +38,7 @@ namespace SecureHub.Application.UsesCases.Arco
 			_biometricProcessor = biometricProcessor;
 			_subjectRepo = subjectRepo;
 			_encryptionService = encryptionService;
+			_emailService = emailService;
 			_unitOfWork = unitOfWork;
 		}
 
@@ -47,8 +50,10 @@ namespace SecureHub.Application.UsesCases.Arco
 			{
 				var subject = await _subjectRepo.GetByIdAsync(dto.SubjectId, ct)
 					?? throw new InvalidOperationException("Titular no encontrado.");
+
 				var stored = await _biometricRepo.GetLatestBySubjectIdAsync(dto.SubjectId, ct)
 					?? throw new InvalidOperationException("El titular no tiene datos biométricos registrados.");
+
 				var decryptedStoredVector = _encryptionService.DecryptBytes(stored.BiometricVector);
 				var embeddingResult = await _biometricProcessor.ExtractEmbeddingAsync(dto.ImageBase64);
 				var candidateBytes = _biometricProcessor.SerializeEmbedding(embeddingResult.Embedding);
@@ -57,6 +62,7 @@ namespace SecureHub.Application.UsesCases.Arco
 				if (score < FaceMatchThreshold)
 					throw new UnauthorizedAccessException(
 						$"Verificación biométrica fallida. Score: {score:F3}, requerido: {FaceMatchThreshold}");
+
 				string? description = dto.Description;
 				if (dto.RequestType == "RECTIFICACION" && dto.UpdatedData is not null)
 				{
@@ -66,8 +72,8 @@ namespace SecureHub.Application.UsesCases.Arco
 						? updatedJson
 						: $"{updatedJson}|{dto.Description}";
 				}
-				var dueDate = CalculateBusinessDays(DateTimeOffset.UtcNow, 15);
 
+				var dueDate = CalculateBusinessDays(DateTimeOffset.UtcNow, 15);
 				var request = new ArcoRequest
 				{
 					SubjectId = dto.SubjectId,
@@ -80,7 +86,6 @@ namespace SecureHub.Application.UsesCases.Arco
 				};
 
 				await _arcoRepo.AddAsync(request, ct);
-
 				await _auditRepo.AddAsync(new ArcoAuditLog
 				{
 					ArcoRequestId = request.Id,
@@ -94,23 +99,32 @@ namespace SecureHub.Application.UsesCases.Arco
 
 				await _unitOfWork.CommitAsync();
 
+				// ── Correo de confirmación (best-effort, fuera de transacción) ─────────
+				try
+				{
+					var subjectEmail = TryDecrypt(subject.Email);
+					var subjectName = TryDecrypt(subject.FullName);
+					await _emailService.SendArcoCreatedAsync(
+						subjectEmail, subjectName,
+						dto.RequestType, request.Id, request.DueDate, ct);
+				}
+				catch { /* no bloquea la solicitud si el correo falla */ }
+
 				return new ArcoRequestResponseDto(
-					request.Id,
-					request.SubjectId,
-					subject.FullName,
-					request.RequestType,
-					request.Status,
-					request.Description,
-					request.RequestedAt,
-					request.DueDate,
-					null, null, null,
-					false);
+					request.Id, request.SubjectId, subject.FullName,
+					request.RequestType, request.Status, request.Description,
+					request.RequestedAt, request.DueDate, null, null, null, false);
 			}
 			catch
 			{
 				await _unitOfWork.RollbackAsync();
 				throw;
 			}
+		}
+
+		private string TryDecrypt(string val)
+		{
+			try { return _encryptionService.Decrypt(val); } catch { return val; }
 		}
 
 		private static DateTimeOffset CalculateBusinessDays(DateTimeOffset start, int days)

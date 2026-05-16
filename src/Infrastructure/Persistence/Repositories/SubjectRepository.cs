@@ -17,11 +17,18 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 			_context = context;
 			_encryptionService = encryptionService;
 		}
+
 		public async Task<Subject?> GetByIdAsync(Guid id)
 			=> await _context.Subjects.FindAsync(id);
 
+		public async Task<Subject?> GetByIdAsync(Guid id, CancellationToken ct)
+			=> await _context.Subjects.FindAsync([id], ct);
+
 		public async Task<Subject?> GetByIdentificationAsync(string identification)
 			=> await _context.Subjects.FirstOrDefaultAsync(s => s.Identification == identification);
+
+		public async Task<Subject?> GetByIdentificationAsync(string identification, CancellationToken ct)
+			=> await _context.Subjects.FirstOrDefaultAsync(s => s.Identification == identification, ct);
 
 		public async Task<Subject?> GetByEmailAsync(string email)
 			=> await _context.Subjects.FirstOrDefaultAsync(s => s.Email == email);
@@ -31,11 +38,11 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 
 		public async Task SaveChangesAsync()
 			=> await _context.SaveChangesAsync();
-		public async Task<Subject?> GetByIdAsync(Guid id, CancellationToken ct)
-			=> await _context.Subjects.FindAsync([id], ct);
+		public async Task<Subject?> GetByIdIncludeDeletedAsync(Guid id, CancellationToken ct)
+			=> await _context.Subjects
+				.IgnoreQueryFilters()
+				.FirstOrDefaultAsync(s => s.Id == id, ct);
 
-		public async Task<Subject?> GetByIdentificationAsync(string identification, CancellationToken ct)
-			=> await _context.Subjects.FirstOrDefaultAsync(s => s.Identification == identification, ct);
 		public async Task<Subject?> FindByDecryptedIdentificationAsync(
 			string identification, CancellationToken ct)
 		{
@@ -50,15 +57,9 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 				try
 				{
 					var decrypted = _encryptionService.Decrypt(c.Identification);
-					if (decrypted == identification)
-					{
-						matchId = c.Id;
-						break;
-					}
+					if (decrypted == identification) { matchId = c.Id; break; }
 				}
-				catch
-				{
-				}
+				catch { }
 			}
 
 			if (matchId is null) return null;

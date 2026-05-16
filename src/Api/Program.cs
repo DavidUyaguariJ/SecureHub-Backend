@@ -6,7 +6,7 @@ using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.RegisterSubject;
 using SecureHub.Infrastructure.Biometrics;
 using SecureHub.Infrastructure.Documents;
-using SecureHub.Infrastructure.EmailSender;
+using SecureHub.Infrastructure.Email;
 using SecureHub.Infrastructure.Persistence;
 using SecureHub.Infrastructure.Persistence.Repositories;
 using SecureHub.Infrastructure.Security;
