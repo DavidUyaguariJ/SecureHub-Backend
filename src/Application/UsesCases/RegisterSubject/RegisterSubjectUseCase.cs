@@ -93,27 +93,13 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 						SerialNumber = d.SerialNumber
 					});
 				}
-
+				var (username, tempPass) =
+					await _keycloak.CreateApplicantUserAsync(
+						command.FullName,
+						command.Email,
+						command.Identification,
+						ct);
 				await _unitOfWork.CommitAsync();
-
-				string username = string.Empty;
-				string tempPass = string.Empty;
-
-				try
-				{
-					(username, tempPass) =
-						await _keycloak.CreateApplicantUserAsync(
-							command.FullName,
-							command.Email,
-							command.Identification,
-							ct);
-				}
-				catch (Exception ex)
-				{
-					throw new InvalidOperationException(
-						$"Sujeto registrado (Id: {subject.Id}) pero falló la creación en Keycloak: {ex.Message}",
-						ex);
-				}
 
 				try
 				{
