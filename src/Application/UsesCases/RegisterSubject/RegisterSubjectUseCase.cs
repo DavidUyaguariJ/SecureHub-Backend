@@ -107,12 +107,13 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 						command.Email,
 						command.FullName,
 						username,
+						subject.Id,
 						tempPass,
 						ct);
 				}
 				catch
 				{
-					// No detener flujo si falla correo
+					
 				}
 
 				return new RegisterSubjectResponse

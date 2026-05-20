@@ -8,7 +8,7 @@ namespace SecureHub.Application.Interfaces
 	{
 		Task SendCredentialsAsync(
 			string toEmail, string fullName,
-			string username, string temporaryPassword,
+			string username, Guid subjectId, string temporaryPassword,
 			CancellationToken ct = default);
 		Task SendArcoCreatedAsync(
 			string toEmail, string fullName,
