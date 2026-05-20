@@ -34,7 +34,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpGet("subject/lookup")]
-		[Authorize(Roles = "admin_api_role,technician_api_role")]
+		[Authorize(Roles = "admin_api_role,applicant_api_role")]
 		public async Task<IActionResult> LookupSubject([FromQuery] string identification, CancellationToken ct)
 		{
 			if (string.IsNullOrWhiteSpace(identification))
@@ -46,7 +46,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpPost]
-		[Authorize(Roles = "admin_api_role,technician_api_role")]
+		[Authorize(Roles = "admin_api_role,applicant_api_role")]
 		public async Task<IActionResult> Create([FromBody] CreateArcoRequestDto dto, CancellationToken ct)
 		{
 			try
@@ -61,7 +61,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpGet]
-		[Authorize(Roles = "admin_api_role")]
+		[Authorize(Roles = "admin_api_role, technician_api_role")]
 		public async Task<IActionResult> GetAll([FromQuery] string? status, CancellationToken ct)
 		{
 			try { return Ok(await _getUseCase.GetAllAsync(status, ct)); }
@@ -82,7 +82,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpGet("subject/{subjectId:guid}")]
-		[Authorize(Roles = "admin_api_role,technician_api_role")]
+		[Authorize(Roles = "admin_api_role,technician_api_role,applicant_api_role")]
 		public async Task<IActionResult> GetBySubject(Guid subjectId, CancellationToken ct)
 		{
 			try { return Ok(await _getUseCase.GetBySubjectAsync(subjectId, ct)); }
@@ -90,7 +90,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpPatch("{id:guid}/status")]
-		[Authorize(Roles = "admin_api_role")]
+		[Authorize(Roles = "admin_api_role,technician_api_role")]
 		public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateArcoStatusDto dto, CancellationToken ct)
 		{
 			try
