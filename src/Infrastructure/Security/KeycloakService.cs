@@ -43,8 +43,6 @@ namespace SecureHub.Infrastructure.Security
 			return (username, tempPass);
 		}
 
-		// ── Token admin via client_credentials (realm master) ─────────────────────
-
 		private async Task<string> GetAdminTokenAsync(CancellationToken ct)
 		{
 			var client = _httpClientFactory.CreateClient("KeycloakAdmin");
@@ -65,14 +63,11 @@ namespace SecureHub.Infrastructure.Security
 			return doc.RootElement.GetProperty("access_token").GetString()!;
 		}
 
-		// ── Crear usuario en el realm configurado por ambiente ────────────────────
-
 		private async Task<string> CreateUserAsync(
 			string token, string username, string fullName,
 			string email, string tempPass, CancellationToken ct)
 		{
 			var client = _httpClientFactory.CreateClient("KeycloakAdmin");
-			// ← usa _realm (variable de entorno), no hardcodeado
 			var url = $"{_adminUrl}/admin/realms/{_realm}/users";
 
 			var nameParts = fullName.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
@@ -114,12 +109,9 @@ namespace SecureHub.Infrastructure.Security
 			return location.Split('/').Last();
 		}
 
-		// ── Agregar al grupo applicant_grp del realm configurado ──────────────────
-
 		private async Task AddToGroupAsync(string token, string userId, CancellationToken ct)
 		{
 			var client = _httpClientFactory.CreateClient("KeycloakAdmin");
-			// ← usa _realm (variable de entorno)
 			var url = $"{_adminUrl}/admin/realms/{_realm}/users/{userId}/groups/{_applicantGroupId}";
 
 			var req = new HttpRequestMessage(HttpMethod.Put, url);
@@ -128,8 +120,6 @@ namespace SecureHub.Infrastructure.Security
 			var resp = await client.SendAsync(req, ct);
 			resp.EnsureSuccessStatusCode();
 		}
-
-		// ── Helpers ────────────────────────────────────────────────────────────────
 
 		private static string GenerateUsername(string identification)
 			=> identification.Replace("-", "").Replace(".", "").ToLowerInvariant();

@@ -34,7 +34,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpGet("subject/lookup")]
-		[Authorize(Roles = "admin_api_role,operador_arco")]
+		[Authorize(Roles = "admin_api_role,technician_api_role")]
 		public async Task<IActionResult> LookupSubject([FromQuery] string identification, CancellationToken ct)
 		{
 			if (string.IsNullOrWhiteSpace(identification))
@@ -46,7 +46,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpPost]
-		[Authorize(Roles = "admin_api_role,operador_arco")]
+		[Authorize(Roles = "admin_api_role,technician_api_role")]
 		public async Task<IActionResult> Create([FromBody] CreateArcoRequestDto dto, CancellationToken ct)
 		{
 			try
@@ -69,7 +69,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpGet("{id:guid}")]
-		[Authorize(Roles = "admin_api_role,operador_arco")]
+		[Authorize(Roles = "admin_api_role,technician_api_role")]
 		public async Task<IActionResult> GetDetail(Guid id, CancellationToken ct)
 		{
 			try
@@ -82,7 +82,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpGet("subject/{subjectId:guid}")]
-		[Authorize(Roles = "admin_api_role,operador_arco")]
+		[Authorize(Roles = "admin_api_role,technician_api_role")]
 		public async Task<IActionResult> GetBySubject(Guid subjectId, CancellationToken ct)
 		{
 			try { return Ok(await _getUseCase.GetBySubjectAsync(subjectId, ct)); }
@@ -105,7 +105,7 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpGet("{id:guid}/download")]
-		[Authorize(Roles = "admin_api_role,operador_arco")]
+		[Authorize(Roles = "admin_api_role,technician_api_role")]
 		public async Task<IActionResult> DownloadResponse(Guid id, CancellationToken ct)
 		{
 			try

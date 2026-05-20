@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace SecureHub.Infrastructure.EmailSender
+namespace SecureHub.Infrastructure.Email
 {
 	public class MailKitEmailService : IEmailService
 	{
@@ -29,30 +29,45 @@ namespace SecureHub.Infrastructure.EmailSender
 			_fromAddress = config["Email:FromAddress"] ?? _username;
 			_portalUrl = config["Email:PortalUrl"] ?? "https://des-app.securehub.com";
 		}
-
 		public async Task SendCredentialsAsync(
 			string toEmail, string fullName, string username,
 			string temporaryPassword, CancellationToken ct = default)
 		{
-			var emailSubject = "Bienvenido a SecureHub — Sus credenciales de acceso";
-			var html = BuildBaseTemplate("Bienvenido a SecureHub",
+			var subject = "Bienvenido a SecureHub — Sus credenciales de acceso";
+			var html = BuildBaseTemplate(
 				"<h2 style='color:#1a1a2e;font-size:18px'>Hola, " + fullName + "</h2>" +
-				"<p style='color:#374151'>El técnico de Newbie ha registrado sus datos en el sistema SecureHub. " +
-				"A continuación encontrará sus credenciales de acceso temporales:</p>" +
+				"<p>Sus credenciales de acceso al portal SecureHub son:</p>" +
 				"<div style='background:#f9fafb;border-left:4px solid #0f3460;padding:16px;border-radius:4px;margin:16px 0'>" +
 				"<p style='margin:0'><strong>Usuario:</strong> " + username + "</p>" +
-				"<p style='margin:8px 0 0'><strong>Contraseña temporal:</strong> " +
-				"<code style='background:#e5e7eb;padding:2px 6px;border-radius:3px'>" + temporaryPassword + "</code></p>" +
+				"<p style='margin:8px 0 0'><strong>Contraseña temporal:</strong> <code style='background:#e5e7eb;padding:2px 6px;border-radius:3px'>" + temporaryPassword + "</code></p>" +
 				"</div>" +
-				"<p style='color:#374151'>Al ingresar por primera vez se le pedirá cambiar su contraseña. " +
-				"También deberá registrar sus datos biométricos faciales para poder ejercer sus derechos ARCO.</p>" +
-				"<div style='text-align:center;margin:24px 0'>" +
-				"<a href='" + _portalUrl + "' style='background:#1a1a2e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold'>" +
-				"Acceder al portal</a></div>");
+				"<p>Deberá registrar su biometría facial al primer ingreso para poder ejercer sus derechos ARCO.</p>" +
+				"<div style='text-align:center;margin:24px 0'><a href='" + _portalUrl + "/my-data' style='background:#1a1a2e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold'>Acceder al portal</a></div>");
+			await SendAsync(toEmail, fullName, subject, html, ct: ct);
+		}
+		public async Task SendArcoCreatedAsync(
+			string toEmail, string fullName, string requestType,
+			Guid requestId, DateTimeOffset? dueDate, CancellationToken ct = default)
+		{
+			var typeLabel = MapRequestType(requestType);
+			var dueDateStr = dueDate.HasValue
+				? dueDate.Value.ToString("dd/MM/yyyy")
+				: "15 días hábiles";
+
+			var emailSubject = "Solicitud ARCO recibida — " + typeLabel;
+			var html = BuildBaseTemplate(
+				"<h2 style='color:#1a1a2e;font-size:18px'>Hola, " + fullName + "</h2>" +
+				"<p>Su solicitud de <strong>" + typeLabel + "</strong> ha sido registrada exitosamente.</p>" +
+				"<div style='background:#f9fafb;border-left:4px solid #0f3460;padding:16px;border-radius:4px;margin:16px 0'>" +
+				"<p style='margin:0'><strong>Número de ticket:</strong></p>" +
+				"<code style='background:#e5e7eb;padding:4px 8px;border-radius:3px;font-size:13px;word-break:break-all'>" + requestId + "</code>" +
+				"<p style='margin:12px 0 0'><strong>Estado:</strong> <span style='color:#d97706'>Pendiente</span></p>" +
+				"<p style='margin:8px 0 0'><strong>Fecha límite de respuesta:</strong> " + dueDateStr + "</p>" +
+				"</div>" +
+				"<p>Recibirá una notificación cuando su solicitud sea procesada. El plazo máximo de respuesta es de <strong>15 días hábiles</strong> conforme a la LOPDP.</p>");
 
 			await SendAsync(toEmail, fullName, emailSubject, html, ct: ct);
 		}
-
 
 		public async Task SendArcoStatusChangedAsync(
 			string toEmail, string fullName, string requestType, string newStatus,
@@ -70,49 +85,33 @@ namespace SecureHub.Infrastructure.EmailSender
 
 			var detailBlock = string.Empty;
 			if (newStatus == "RECHAZADO" && !string.IsNullOrWhiteSpace(rejectedReason))
-			{
-				detailBlock =
-					"<div style='background:#fef2f2;border-left:4px solid #fca5a5;padding:12px;border-radius:4px;margin:12px 0'>" +
-					"<strong style='color:#dc2626'>Motivo del rechazo:</strong>" +
-					"<p style='margin:4px 0;color:#374151'>" + rejectedReason + "</p></div>";
-			}
+				detailBlock = "<div style='background:#fef2f2;border-left:4px solid #fca5a5;padding:12px;border-radius:4px;margin:12px 0'><strong style='color:#dc2626'>Motivo:</strong><p style='margin:4px 0'>" + rejectedReason + "</p></div>";
 			else if (newStatus == "COMPLETADO" && !string.IsNullOrWhiteSpace(responseText))
-			{
-				detailBlock =
-					"<div style='background:#f0fdf4;border-left:4px solid #86efac;padding:12px;border-radius:4px;margin:12px 0'>" +
-					"<strong style='color:#16a34a'>Respuesta oficial:</strong>" +
-					"<p style='margin:4px 0;color:#374151'>" + responseText + "</p></div>";
-			}
+				detailBlock = "<div style='background:#f0fdf4;border-left:4px solid #86efac;padding:12px;border-radius:4px;margin:12px 0'><strong style='color:#16a34a'>Respuesta oficial:</strong><p style='margin:4px 0'>" + responseText + "</p></div>";
 
-			var pdfNote = (newStatus == "COMPLETADO" || newStatus == "RECHAZADO")
-				? "<p style='color:#374151'>Adjunto encontrará el documento oficial de respuesta en formato PDF.</p>"
+			var pdfNote = (newStatus is "COMPLETADO" or "RECHAZADO")
+				? "<p>Adjunto encontrará el documento oficial de respuesta en formato PDF.</p>"
 				: string.Empty;
 
-			var emailSubject = "Actualización de su solicitud ARCO — " + typeLabel;
-			var html = BuildBaseTemplate("Actualización ARCO",
+			var emailSubject = "Actualización de solicitud ARCO — " + typeLabel;
+			var html = BuildBaseTemplate(
 				"<h2 style='color:#1a1a2e;font-size:18px'>Hola, " + fullName + "</h2>" +
-				"<p style='color:#374151'>Su solicitud de <strong>" + typeLabel + "</strong> ha sido actualizada.</p>" +
-				"<div style='text-align:center;margin:16px 0'>" +
-				"<span style='background:" + statusColor + ";color:#fff;padding:6px 16px;border-radius:20px;font-weight:bold;font-size:14px'>" +
-				statusLabel + "</span></div>" +
+				"<p>Su solicitud de <strong>" + typeLabel + "</strong> ha sido actualizada.</p>" +
+				"<div style='text-align:center;margin:16px 0'><span style='background:" + statusColor + ";color:#fff;padding:6px 16px;border-radius:20px;font-weight:bold;font-size:14px'>" + statusLabel + "</span></div>" +
 				detailBlock + pdfNote);
 
 			await SendAsync(toEmail, fullName, emailSubject, html, ct: ct);
 		}
-
-
 		public async Task SendArcoResolutionWithPdfAsync(
 			string toEmail, string fullName, string requestType, string resolution,
 			byte[] pdfBytes, string pdfFileName, CancellationToken ct = default)
 		{
 			var typeLabel = MapRequestType(requestType);
-			var emailSubject = "Respuesta oficial a su solicitud ARCO — " + typeLabel;
-			var html = BuildBaseTemplate("Respuesta Oficial ARCO",
+			var emailSubject = "Respuesta oficial — " + typeLabel;
+			var html = BuildBaseTemplate(
 				"<h2 style='color:#1a1a2e;font-size:18px'>Hola, " + fullName + "</h2>" +
-				"<p style='color:#374151'>Adjunto encontrará el documento oficial de respuesta a su solicitud de " +
-				"<strong>" + typeLabel + "</strong>.</p>" +
-				"<p style='color:#374151'>Este documento tiene validez como constancia del ejercicio de sus derechos " +
-				"conforme a la <strong>Ley Orgánica de Protección de Datos Personales (LOPDP)</strong> del Ecuador.</p>");
+				"<p>Adjunto encontrará el documento oficial de respuesta a su solicitud de <strong>" + typeLabel + "</strong>.</p>" +
+				"<p>Este documento tiene validez como constancia del ejercicio de sus derechos conforme a la <strong>LOPDP</strong>.</p>");
 
 			await SendAsync(toEmail, fullName, emailSubject, html, pdfBytes, pdfFileName, ct);
 		}
@@ -128,7 +127,6 @@ namespace SecureHub.Infrastructure.EmailSender
 			message.Subject = subject;
 
 			var builder = new BodyBuilder { HtmlBody = htmlBody };
-
 			if (attachment is not null && attachmentName is not null)
 				builder.Attachments.Add(attachmentName, attachment, ContentType.Parse("application/pdf"));
 
@@ -141,20 +139,15 @@ namespace SecureHub.Infrastructure.EmailSender
 			await client.DisconnectAsync(true, ct);
 		}
 
-		private static string BuildBaseTemplate(string title, string body)
-		{
-			return
-				"<div style='font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;" +
-				"border:1px solid #e5e7eb;border-radius:8px'>" +
-				"<div style='text-align:center;margin-bottom:24px'>" +
-				"<h1 style='color:#1a1a2e;font-size:24px;margin:0'>Newbie</h1>" +
-				"<p style='color:#6b7280;font-size:13px;margin:4px 0'>SecureHub — Plataforma de Protección de Datos</p>" +
-				"</div>" +
-				body +
-				"<hr style='border:none;border-top:1px solid #e5e7eb;margin:24px 0'/>" +
-				"<p style='color:#9ca3af;font-size:12px;text-align:center'>" +
-				"Newbie S.A.S. &middot; Quito, Ecuador &middot; Cumplimiento LOPDP</p></div>";
-		}
+		private static string BuildBaseTemplate(string body)
+			=>
+			"<div style='font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px'>" +
+			"<div style='text-align:center;margin-bottom:24px'>" +
+			"<h1 style='color:#1a1a2e;font-size:24px;margin:0'>Newbie</h1>" +
+			"<p style='color:#6b7280;font-size:13px;margin:4px 0'>SecureHub — Plataforma de Protección de Datos</p>" +
+			"</div>" + body +
+			"<hr style='border:none;border-top:1px solid #e5e7eb;margin:24px 0'/>" +
+			"<p style='color:#9ca3af;font-size:12px;text-align:center'>Newbie S.A.S. &middot; Quito, Ecuador &middot; Cumplimiento LOPDP</p></div>";
 
 		private static string MapRequestType(string t) => t switch
 		{

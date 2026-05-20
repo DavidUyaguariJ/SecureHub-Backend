@@ -36,7 +36,7 @@ namespace SecureHub.Application.UsesCases.Arco
 			var result = new List<ArcoRequestResponseDto>();
 			foreach (var r in requests)
 			{
-				var subject = await _subjectRepo.GetByIdAsync(r.SubjectId, ct);
+				var subject = await _subjectRepo.GetByIdIncludeDeletedAsync(r.SubjectId, ct);
 				var maskedName = DecryptAndMask(subject?.FullName);
 				result.Add(MapToDto(r, maskedName));
 			}
@@ -49,7 +49,7 @@ namespace SecureHub.Application.UsesCases.Arco
 			var request = await _arcoRepo.GetByIdAsync(requestId, ct);
 			if (request is null) return null;
 
-			var subject = await _subjectRepo.GetByIdAsync(request.SubjectId, ct);
+			var subject = await _subjectRepo.GetByIdIncludeDeletedAsync(request.SubjectId, ct);
 			var maskedName = DecryptAndMask(subject?.FullName);
 			var logs = await _auditRepo.GetByRequestIdAsync(requestId, ct);
 
@@ -63,11 +63,12 @@ namespace SecureHub.Application.UsesCases.Arco
 		public async Task<IEnumerable<ArcoRequestResponseDto>> GetBySubjectAsync(
 			Guid subjectId, CancellationToken ct = default)
 		{
-			var subject = await _subjectRepo.GetByIdAsync(subjectId, ct);
+			var subject = await _subjectRepo.GetByIdIncludeDeletedAsync(subjectId, ct);
 			var maskedName = DecryptAndMask(subject?.FullName);
 			var requests = await _arcoRepo.GetBySubjectIdAsync(subjectId, ct);
 			return requests.Select(r => MapToDto(r, maskedName));
 		}
+
 		private string DecryptAndMask(string? encryptedName)
 		{
 			if (string.IsNullOrWhiteSpace(encryptedName)) return "—";
@@ -76,10 +77,7 @@ namespace SecureHub.Application.UsesCases.Arco
 				var clear = _encryptionService.Decrypt(encryptedName);
 				return MaskName(clear);
 			}
-			catch
-			{
-				return encryptedName;
-			}
+			catch { return encryptedName; }
 		}
 
 		private static string MaskName(string name)

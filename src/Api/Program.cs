@@ -6,7 +6,7 @@ using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.RegisterSubject;
 using SecureHub.Infrastructure.Biometrics;
 using SecureHub.Infrastructure.Documents;
-using SecureHub.Infrastructure.EmailSender;
+using SecureHub.Infrastructure.Email;
 using SecureHub.Infrastructure.Persistence;
 using SecureHub.Infrastructure.Persistence.Repositories;
 using SecureHub.Infrastructure.Security;
@@ -56,9 +56,9 @@ builder.Services.AddSingleton<IEncryptionService>(
 	new RsaEncryptionService(rsaPublicKey, rsaPrivateKey));
 
 // ── Base de datos
-var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "ep-divine-heart-anddt3oz-pooler.c-6.us-east-1.aws.neon.tech";
-var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "neondb_owner";
-var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "npg_6yIFAw4geKkz";
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
+var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 var dbName = builder.Configuration["Database:Name"] ?? "securehub_des";
 var dbPort = builder.Configuration["Database:Port"] ?? "5432";
 

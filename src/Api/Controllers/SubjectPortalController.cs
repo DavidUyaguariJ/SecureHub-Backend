@@ -8,7 +8,7 @@ namespace SecureHub.Api.Controllers
 {
 	[ApiController]
 	[Route("api/[controller]")]
-	[Authorize(Roles = "applicant-role,admin_api_role")]
+	[Authorize(Roles = "applicant_role,admin_api_role")]
 	public class SubjectPortalController : ControllerBase
 	{
 		private readonly GetSubjectPortalDataUseCase _getDataUseCase;
