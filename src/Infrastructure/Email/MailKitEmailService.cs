@@ -43,7 +43,7 @@ namespace SecureHub.Infrastructure.Email
 				"<p style='margin:8px 0 0'><strong>Contraseña temporal:</strong> <code style='background:#e5e7eb;padding:2px 6px;border-radius:3px'>" + temporaryPassword + "</code></p>" +
 				"</div>" +
 				"<p>Deberá registrar su biometría facial al primer ingreso para poder ejercer sus derechos ARCO.</p>" +
-				"<div style='text-align:center;margin:24px 0'><a href='" + _portalUrl + "/my-data?subjectId='" + subjectId + " style='background:#1a1a2e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold'>Acceder al portal</a></div>");
+				"<div style='text-align:center;margin:24px 0'><a href='" + _portalUrl + "/my-data?subjectId=" + subjectId + "' style='background:#1a1a2e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold'>Acceder al portal</a></div>");
 			await SendAsync(toEmail, fullName, subject, html, ct: ct);
 		}
 		public async Task SendArcoCreatedAsync(
