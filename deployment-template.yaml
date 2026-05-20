@@ -22,7 +22,7 @@ spec:
           env:
             - name: ASPNETCORE_ENVIRONMENT
               value: "${ASPNETCORE_ENVIRONMENT}"
-            - name: db-host
+            - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
                   name: backend-config-${NAMESPACE}
