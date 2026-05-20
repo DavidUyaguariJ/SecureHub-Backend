@@ -8,7 +8,7 @@ namespace SecureHub.Api.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
-	[Authorize(Roles = "admin_api_role")]
+	[Authorize(Roles = "admin_api_role,technician_api_role")]
 	public class SubjectController : ControllerBase
 	{
 		private readonly RegisterSubjectUseCase _registerSubjectUseCase;
