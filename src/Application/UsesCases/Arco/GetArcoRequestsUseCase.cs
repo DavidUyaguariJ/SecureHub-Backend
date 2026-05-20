@@ -29,8 +29,6 @@ namespace SecureHub.Application.UsesCases.Arco
 		public async Task<IEnumerable<ArcoRequestResponseDto>> GetAllAsync(
 			string? statusFilter, CancellationToken ct = default)
 		{
-			// IgnoreQueryFilters en el repositorio para que los subjects con
-			// IsDeleted=true (CANCELACION aprobada) también se incluyan.
 			var requests = statusFilter is not null
 				? await _arcoRepo.GetByStatusAsync(statusFilter, ct)
 				: await _arcoRepo.GetAllAsync(ct);
@@ -38,7 +36,6 @@ namespace SecureHub.Application.UsesCases.Arco
 			var result = new List<ArcoRequestResponseDto>();
 			foreach (var r in requests)
 			{
-				// GetByIdIncludeDeletedAsync ignora el QueryFilter de IsDeleted
 				var subject = await _subjectRepo.GetByIdIncludeDeletedAsync(r.SubjectId, ct);
 				var maskedName = DecryptAndMask(subject?.FullName);
 				result.Add(MapToDto(r, maskedName));
