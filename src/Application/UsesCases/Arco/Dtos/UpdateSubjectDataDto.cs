@@ -8,6 +8,7 @@ namespace SecureHub.Application.UsesCases.Arco.Dtos
 		string? FullName,
 		string? Phone,
 		string? Address,
-		string? Email
+		string? Email,
+		IEnumerable<UpdateDeviceDto>? Devices
 	);
 }

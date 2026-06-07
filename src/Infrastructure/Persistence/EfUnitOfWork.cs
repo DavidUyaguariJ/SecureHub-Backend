@@ -35,5 +35,8 @@ namespace SecureHub.Infrastructure.Persistence
 
 		public Task SaveChangesAsync()
 			=> _context.SaveChangesAsync();
+
+		public async Task SaveAsync(CancellationToken ct = default)
+	=> await _context.SaveChangesAsync(ct);
 	}
 }

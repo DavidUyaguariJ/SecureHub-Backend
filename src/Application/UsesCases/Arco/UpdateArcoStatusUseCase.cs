@@ -2,10 +2,6 @@
 using SecureHub.Application.UsesCases.Arco.Dtos;
 using SecureHub.Domain.Entities;
 using SecureHub.Infrastructure.Persistence.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
 
 namespace SecureHub.Application.UsesCases.Arco
@@ -14,11 +10,21 @@ namespace SecureHub.Application.UsesCases.Arco
 	{
 		private readonly IArcoRequestRepository _arcoRepo;
 		private readonly IArcoAuditLogRepository _auditRepo;
+		private readonly IDeviceRepository _deviceRepo;
 		private readonly ISubjectRepository _subjectRepo;
 		private readonly IEncryptionService _encryptionService;
 		private readonly IEmailService _emailService;
 		private readonly IArcoResponsePdfService _pdfService;
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly IBlockchainService _blockchain;
+
+		private static string HashString(string? value)
+		{
+			if (string.IsNullOrEmpty(value)) return "";
+			using var sha = System.Security.Cryptography.SHA256.Create();
+			var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(value));
+			return "sha256:" + Convert.ToHexString(bytes).ToLower();
+		}
 
 		public UpdateArcoStatusUseCase(
 			IArcoRequestRepository arcoRepo,
@@ -27,7 +33,9 @@ namespace SecureHub.Application.UsesCases.Arco
 			IEncryptionService encryptionService,
 			IEmailService emailService,
 			IArcoResponsePdfService pdfService,
-			IUnitOfWork unitOfWork)
+			IDeviceRepository deviceRepo,
+			IUnitOfWork unitOfWork,
+			IBlockchainService blockchain)
 		{
 			_arcoRepo = arcoRepo;
 			_auditRepo = auditRepo;
@@ -36,6 +44,8 @@ namespace SecureHub.Application.UsesCases.Arco
 			_emailService = emailService;
 			_pdfService = pdfService;
 			_unitOfWork = unitOfWork;
+			_blockchain = blockchain;
+			_deviceRepo = deviceRepo;
 		}
 
 		public async Task<ArcoRequestResponseDto> ExecuteAsync(
@@ -97,14 +107,35 @@ namespace SecureHub.Application.UsesCases.Arco
 										new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
 									if (updateData is not null)
+									{
 										subject.UpdatePersonalData(
 											fullName: updateData.FullName is not null ? _encryptionService.Encrypt(updateData.FullName) : null,
 											email: updateData.Email is not null ? _encryptionService.Encrypt(updateData.Email) : null,
 											phone: updateData.Phone is not null ? _encryptionService.Encrypt(updateData.Phone) : null,
 											address: updateData.Address is not null ? _encryptionService.Encrypt(updateData.Address) : null
 										);
+									}
+									if (updateData?.Devices is not null && updateData.Devices.Any())
+									{
+										var devices = await _deviceRepo.GetBySubjectIdAsync(subject.Id, ct);
+
+										foreach (var upd in updateData.Devices.Where(d => d.Id != Guid.Empty))
+										{
+											var device = devices.FirstOrDefault(d => d.Id == upd.Id);
+											if (device is null) continue;
+											device.Update(
+												brand: upd.Brand,
+												model: upd.Model,
+												serialNumber: upd.SerialNumber is not null
+													? _encryptionService.Encrypt(upd.SerialNumber)
+													: null
+											);
+										}
+
+										await _deviceRepo.SaveChangesAsync();
+									}
 								}
-								catch (JsonException) { /* texto libre, no JSON */ }
+								catch (JsonException) { }
 							}
 							break;
 
@@ -123,6 +154,7 @@ namespace SecureHub.Application.UsesCases.Arco
 					NewStatus = dto.NewStatus,
 					PerformedBy = operatorId,
 					PerformedByRole = dto.OperatorRole ?? "OPERADOR",
+					PerformedByName = dto.OperatorName,
 					IpAddress = requesterIp,
 					Notes = dto.NewStatus == "RECHAZADO"
 						? "Motivo: " + dto.RejectedReason
@@ -132,14 +164,27 @@ namespace SecureHub.Application.UsesCases.Arco
 
 				await _unitOfWork.CommitAsync();
 
-				// ── Notificaciones (fuera de transacción) ─────────────────────────────
+				await _blockchain.RecordAuditAsync(
+					entityId: request.Id,
+					entityType: "ARCO_REQUEST",
+					action: "STATUS_CHANGED",
+					previousState: previousStatus,
+					newState: dto.NewStatus,
+					operatorRef: operatorId.ToString(),
+					ipHash: HashString(requesterIp),
+					ct: ct);
 
+				if (dto.NewStatus is "COMPLETADO" or "RECHAZADO")
+					await _blockchain.UpdateArcoStatusAsync(
+						arcoRequestId: request.Id,
+						newStatus: dto.NewStatus,
+						resolutionHash: "",
+						ct: ct);
 				if (subject is not null)
 				{
 					var subjectEmail = TryDecrypt(subject.Email);
 					var subjectName = TryDecrypt(subject.FullName);
 
-					// Correo en todos los cambios de estado
 					try
 					{
 						await _emailService.SendArcoStatusChangedAsync(
@@ -149,7 +194,6 @@ namespace SecureHub.Application.UsesCases.Arco
 					}
 					catch { /* best-effort */ }
 
-					// Si es resolución final → PDF adjunto
 					if (dto.NewStatus is "COMPLETADO" or "RECHAZADO")
 					{
 						try
@@ -164,7 +208,7 @@ namespace SecureHub.Application.UsesCases.Arco
 									request.ResponseFilePath is not null),
 								logs.Select(l => new ArcoAuditLogDto(
 									l.Id, l.Action, l.PreviousStatus, l.NewStatus,
-									l.PerformedByRole, l.Notes, l.CreatedAt)));
+									l.PerformedByRole, l.PerformedByName, l.Notes, l.CreatedAt)));
 
 							var pdfBytes = _pdfService.Generate(detailDto);
 							var fileName = "respuesta-arco-" + request.Id.ToString()[..8].ToUpper() + ".pdf";

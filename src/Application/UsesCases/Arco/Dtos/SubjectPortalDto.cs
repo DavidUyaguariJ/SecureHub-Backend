@@ -14,6 +14,7 @@ namespace SecureHub.Application.UsesCases.Arco.Dtos
 		string? SubjectType,
 		string? ContactPerson,
 		bool HasBiometrics,
-		DateTime CreatedAt
+		DateTime CreatedAt,
+		IEnumerable<DevicePortalDto> Devices
 	);
 }

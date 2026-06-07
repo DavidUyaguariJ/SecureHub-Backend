@@ -98,7 +98,11 @@ namespace SecureHub.Api.Controllers
 				var subClaim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
 				Guid operatorId = Guid.TryParse(subClaim, out var parsed) ? parsed : Guid.Empty;
 				var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-				return Ok(await _updateStatusUseCase.ExecuteAsync(id, dto, operatorId, ip, ct));
+				var operatorName = User.FindFirstValue("name")
+					?? User.FindFirstValue("preferred_username")
+					?? "Operador";
+				var enrichedDto = dto with { OperatorName = operatorName };
+				return Ok(await _updateStatusUseCase.ExecuteAsync(id, enrichedDto, operatorId, ip, ct));
 			}
 			catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
 			catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }

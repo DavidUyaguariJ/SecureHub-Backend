@@ -4,7 +4,9 @@ using Microsoft.IdentityModel.Tokens;
 using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.Arco;
 using SecureHub.Application.UsesCases.RegisterSubject;
+using SecureHub.Application.UsesCases.ThirdPart;
 using SecureHub.Infrastructure.Biometrics;
+using SecureHub.Infrastructure.Blockchain;
 using SecureHub.Infrastructure.Documents;
 using SecureHub.Infrastructure.Email;
 using SecureHub.Infrastructure.Persistence;
@@ -14,8 +16,6 @@ using System.Security.Claims;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// ── Configuración de entorno
 var envFile = builder.Environment.EnvironmentName switch
 {
 	"Development" => "Develop",
@@ -27,24 +27,29 @@ builder.Configuration
 	.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
 	.AddJsonFile($"appsettings.{envFile}.json", optional: true)
 	.AddEnvironmentVariables();
-
-// HttpClient para Keycloak Admin (ignora SSL autofirmado en dev)
 builder.Services.AddHttpClient("KeycloakAdmin")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback = (_, _, _, _) => true
     });
  
-// Email
 builder.Services.AddScoped<IEmailService, MailKitEmailService>();
- 
-// Keycloak user management
 builder.Services.AddScoped<IKeycloakService, KeycloakService>();
- 
-// Subject Portal use cases (para el titular)
 builder.Services.AddScoped<GetSubjectPortalDataUseCase>();
 builder.Services.AddScoped<RegisterSubjectBiometricUseCase>();
 builder.Services.AddScoped<VerifySubjectBiometricUseCase>();
+builder.Services.AddScoped<CreatePartContractUseCase>();
+builder.Services.AddScoped<RevokePartContractUseCase>();
+builder.Services.AddScoped<GetPartContractsUseCase>();
+builder.Services.AddScoped<GetExternalSubjectDataUseCase>();
+
+builder.Services.AddScoped<RegisterSubjectUseCase>();
+builder.Services.AddScoped<CreateArcoRequestUseCase>();
+builder.Services.AddScoped<UpdateArcoStatusUseCase>();
+builder.Services.AddScoped<GetArcoRequestsUseCase>();
+builder.Services.AddScoped<LookupSubjectUseCase>();
+builder.Services.AddScoped<RenewPartContractUseCase>();
+
 
 // ── Cifrado RSA
 var rsaPublicKey = Environment.GetEnvironmentVariable("RSA_PUBLIC_KEY")
@@ -73,19 +78,14 @@ builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
 builder.Services.AddScoped<IArcoRequestRepository, ArcoRequestRepository>();
 builder.Services.AddScoped<IArcoAuditLogRepository, ArcoAuditLogRepository>();
+builder.Services.AddScoped<IPartContractRepository, PartContractRepository>();
 
 // ── Infraestructura
 builder.Services.AddSingleton<IBiometricProcessor, ArcFaceBiometricProcessor>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+builder.Services.AddSingleton<IBlockchainService, BlockchainService>();
+builder.Services.AddScoped<IPartContractPdfService, PartContractPdfService>();
 
-// ── Casos de uso: Subject
-builder.Services.AddScoped<RegisterSubjectUseCase>();
-
-// ── Casos de uso: ARCO
-builder.Services.AddScoped<CreateArcoRequestUseCase>();
-builder.Services.AddScoped<UpdateArcoStatusUseCase>();
-builder.Services.AddScoped<GetArcoRequestsUseCase>();
-builder.Services.AddScoped<LookupSubjectUseCase>();
 
 // ── Autenticación Keycloak / JWT
 var keycloakConfig = builder.Configuration.GetSection("Keycloak");

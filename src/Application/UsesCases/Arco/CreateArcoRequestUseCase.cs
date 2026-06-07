@@ -21,6 +21,7 @@ namespace SecureHub.Application.UsesCases.Arco
 		private readonly IEncryptionService _encryptionService;
 		private readonly IEmailService _emailService;
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly IBlockchainService _blockchain;
 
 		public CreateArcoRequestUseCase(
 			IArcoRequestRepository arcoRepo,
@@ -30,7 +31,8 @@ namespace SecureHub.Application.UsesCases.Arco
 			ISubjectRepository subjectRepo,
 			IEncryptionService encryptionService,
 			IEmailService emailService,
-			IUnitOfWork unitOfWork)
+			IUnitOfWork unitOfWork,
+			IBlockchainService blockchain)
 		{
 			_arcoRepo = arcoRepo;
 			_auditRepo = auditRepo;
@@ -40,8 +42,15 @@ namespace SecureHub.Application.UsesCases.Arco
 			_encryptionService = encryptionService;
 			_emailService = emailService;
 			_unitOfWork = unitOfWork;
+			_blockchain = blockchain;
 		}
-
+		private static string HashString(string? value)
+		{
+			if (string.IsNullOrEmpty(value)) return "";
+			using var sha = System.Security.Cryptography.SHA256.Create();
+			var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(value));
+			return "sha256:" + Convert.ToHexString(bytes).ToLower();
+		}
 		public async Task<ArcoRequestResponseDto> ExecuteAsync(
 			CreateArcoRequestDto dto, string requesterIp, CancellationToken ct = default)
 		{
@@ -99,7 +108,22 @@ namespace SecureHub.Application.UsesCases.Arco
 
 				await _unitOfWork.CommitAsync();
 
-				// ── Correo de confirmación (best-effort, fuera de transacción) ─────────
+				await _blockchain.RecordArcoRequestAsync(
+					arcoRequestId: request.Id,
+					subjectId: request.SubjectId,
+					requestType: request.RequestType,
+					requestedAt: request.RequestedAt,
+					ct: ct);
+
+				await _blockchain.RecordAuditAsync(
+					entityId: request.Id,
+					entityType: "ARCO_REQUEST",
+					action: "CREATED",
+					previousState: "",
+					newState: "PENDIENTE",
+					operatorRef: "TITULAR",
+					ipHash: HashString(requesterIp),
+					ct: ct);
 				try
 				{
 					var subjectEmail = TryDecrypt(subject.Email);
@@ -140,4 +164,5 @@ namespace SecureHub.Application.UsesCases.Arco
 			return date;
 		}
 	}
+
 }

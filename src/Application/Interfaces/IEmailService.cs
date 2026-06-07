@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SecureHub.Application.Interfaces
+﻿namespace SecureHub.Application.Interfaces
 {
 	public interface IEmailService
 	{
@@ -10,6 +6,7 @@ namespace SecureHub.Application.Interfaces
 			string toEmail, string fullName,
 			string username, Guid subjectId, string temporaryPassword,
 			CancellationToken ct = default);
+
 		Task SendArcoCreatedAsync(
 			string toEmail, string fullName,
 			string requestType, Guid requestId,
@@ -26,6 +23,18 @@ namespace SecureHub.Application.Interfaces
 			string toEmail, string fullName,
 			string requestType, string resolution,
 			byte[] pdfBytes, string pdfFileName,
+			CancellationToken ct = default);
+
+		Task SendExternalCredentialsAsync(
+			string toEmail, string companyName,
+			string username, string temporaryPassword,
+			Guid subjectId,
+			DateTimeOffset validUntil,
+			CancellationToken ct = default);
+		Task SendSubjectThirdPartyNotificationAsync(
+			string subjectEmail, string subjectName,
+			string companyName, string purposeDescription,
+			string[] allowedFields, DateTimeOffset validUntil,
 			CancellationToken ct = default);
 	}
 }

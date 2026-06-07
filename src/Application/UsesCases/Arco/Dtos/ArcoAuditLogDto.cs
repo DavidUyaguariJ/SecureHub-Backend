@@ -10,6 +10,7 @@ namespace SecureHub.Application.UsesCases.Arco.Dtos
 		string? PreviousStatus,
 		string? NewStatus,
 		string? PerformedByRole,
+		string? PerformedByName,
 		string? Notes,
 		DateTimeOffset CreatedAt
 	);

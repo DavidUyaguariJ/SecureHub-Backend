@@ -139,6 +139,46 @@ namespace SecureHub.Infrastructure.Email
 			await client.SendAsync(message, ct);
 			await client.DisconnectAsync(true, ct);
 		}
+		public async Task SendSubjectThirdPartyNotificationAsync(
+			string subjectEmail, string subjectName,
+			string companyName, string purposeDescription,
+			string[] allowedFields, DateTimeOffset validUntil,
+			CancellationToken ct = default)
+		{
+			var fieldsHtml = string.Join("", allowedFields.Select(f =>
+				$"<li style='margin:4px 0'>{f}</li>"));
+			var emailSubject = "Información: Un tercero accederá a sus datos — Newbie";
+			var html = BuildBaseTemplate(
+				$"<h2 style='color:#1a1a2e;font-size:18px'>Hola, {subjectName}</h2>" +
+				"<p>Le informamos que la empresa <strong>" + companyName + "</strong> ha sido autorizada como " +
+				"<strong>Encargado del Tratamiento</strong> de sus datos personales conforme a la LOPDP (Art. 41).</p>" +
+				"<div style='background:#f9fafb;border-left:4px solid #0f3460;padding:16px;border-radius:4px;margin:16px 0'>" +
+				"<p style='margin:0'><strong>Finalidad:</strong> " + purposeDescription + "</p>" +
+				"<p style='margin:8px 0 0'><strong>Acceso válido hasta:</strong> " + validUntil.ToString("dd/MM/yyyy HH:mm") + "</p>" +
+				"<p style='margin:8px 0 0'><strong>Datos a los que accederá:</strong></p>" +
+				"<ul style='margin:4px 0;padding-left:20px'>" + fieldsHtml + "</ul>" +
+				"</div>" +
+				"<p>Si tiene dudas o desea ejercer sus derechos ARCO, ingrese al portal.</p>");
+			await SendAsync(subjectEmail, subjectName, emailSubject, html, ct: ct);
+		}
+		public async Task SendExternalCredentialsAsync(string toEmail, string companyName,string username, string temporaryPassword, Guid subjectId, DateTimeOffset validUntil,CancellationToken ct = default)
+			{
+			var subject = "Acceso al Portal Externo — SecureHub";
+			var html = BuildBaseTemplate(
+				"<h2 style='color:#1a1a2e;font-size:18px'>Estimado/a " + companyName + "</h2>" +
+				"<p>Ha sido registrado como <strong>Encargado del Tratamiento</strong> conforme a la <strong>LOPDP (Art. 41)</strong>.</p>" +
+				"<div style='background:#f9fafb;border-left:4px solid #0f3460;padding:16px;border-radius:4px;margin:16px 0'>" +
+				"<p style='margin:0'><strong>Usuario:</strong> " + username + "</p>" +
+				"<p style='margin:8px 0 0'><strong>Contraseña temporal:</strong> <code style='background:#e5e7eb;padding:2px 6px;border-radius:3px'>" + temporaryPassword + "</code></p>" +
+				"<p style='margin:8px 0 0'><strong>Acceso válido hasta:</strong> " + validUntil.ToString("dd/MM/yyyy") + "</p>" +
+				"<p style='margin:8px 0 0'><strong>ID del titular autorizado:</strong> <code style='background:#e5e7eb;padding:2px 6px;border-radius:3px;font-size:12px'>" + subjectId + "</code></p>" +
+				"</div>" +
+				"<p>Ingrese el ID del titular en el portal para consultar los datos autorizados.</p>" +
+				"<div style='text-align:center;margin:24px 0'><a href='" + _portalUrl + "/external' style='background:#1a1a2e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold'>Acceder al Portal Externo</a></div>");
+			await SendAsync(toEmail, companyName, subject, html, ct: ct);
+
+			await SendAsync(toEmail, companyName, subject, html, ct: ct);
+			}
 
 		private static string BuildBaseTemplate(string body)
 			=>

@@ -56,8 +56,14 @@ namespace SecureHub.Application.UsesCases.Arco
 			return new ArcoRequestDetailDto(
 				MapToDto(request, maskedName),
 				logs.Select(l => new ArcoAuditLogDto(
-					l.Id, l.Action, l.PreviousStatus, l.NewStatus,
-					l.PerformedByRole, l.Notes, l.CreatedAt)));
+					l.Id,
+					l.Action,
+					l.PreviousStatus,
+					l.NewStatus,
+					l.PerformedByRole,
+					l.PerformedByName,
+					l.Notes,
+					l.CreatedAt)));
 		}
 
 		public async Task<IEnumerable<ArcoRequestResponseDto>> GetBySubjectAsync(

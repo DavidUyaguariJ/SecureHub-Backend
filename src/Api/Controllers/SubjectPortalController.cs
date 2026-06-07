@@ -53,20 +53,25 @@ namespace SecureHub.Api.Controllers
 		}
 
 		[HttpPost("{subjectId:guid}/biometric/verify")]
-		public async Task<IActionResult> VerifyBiometric(
-			Guid subjectId,
-			[FromBody] VerifyBiometricCommand command,
-			CancellationToken ct)
+		public async Task<IActionResult> VerifyBiometric(Guid subjectId,[FromBody] VerifyBiometricCommand command,CancellationToken ct)
 		{
 			try
 			{
 				var verified = await _verifyBiometricUseCase.ExecuteAsync(subjectId, command, ct);
-				if (!verified)
+				if (!verified) 
+				{
 					return Unauthorized(new { message = "Verificación biométrica fallida. Intente nuevamente." });
+				}
 				return Ok(new { verified = true, message = "Identidad verificada correctamente." });
 			}
-			catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
-			catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+			catch (InvalidOperationException ex) 
+			{ 
+				return BadRequest(new { message = ex.Message }); 
+			}
+			catch (Exception ex) 
+			{ 
+				return StatusCode(500, new { message = ex.Message }); 
+			}
 		}
 	}
 }

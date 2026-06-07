@@ -65,5 +65,8 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 			if (matchId is null) return null;
 			return await _context.Subjects.FindAsync([matchId.Value], ct);
 		}
+
+		public async Task<Subject?> GetByIdWithDevicesAsync(Guid id, CancellationToken ct = default)=> 
+			await _context.Subjects.Include(s => s.Devices).FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted, ct);
 	}
 }

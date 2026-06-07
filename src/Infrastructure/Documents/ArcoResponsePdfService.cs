@@ -16,7 +16,8 @@ namespace SecureHub.Infrastructure.Documents
 		public byte[] Generate(ArcoRequestDetailDto detail)
 		{
 			var req = detail.Request;
-
+			var resolutionLog = detail.AuditLogs.Where(l => l.NewStatus is "COMPLETADO" or "RECHAZADO").OrderByDescending(l => l.CreatedAt).FirstOrDefault();
+			var resolvedByName = resolutionLog?.PerformedByName?? resolutionLog?.PerformedByRole?? "—";
 			return Document.Create(container =>
 			{
 				container.Page(page =>
@@ -56,7 +57,6 @@ namespace SecureHub.Infrastructure.Documents
 						col.Item().PaddingVertical(14)
 							.LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten2);
 
-						// Datos
 						col.Item().Text("Datos de la solicitud").Bold().FontSize(12);
 						col.Item().PaddingTop(8).Table(table =>
 						{
@@ -80,6 +80,7 @@ namespace SecureHub.Infrastructure.Documents
 							Row("Fecha solicitud:", req.RequestedAt.ToString("dd/MM/yyyy HH:mm"));
 							Row("Fecha límite LOPDP:", req.DueDate?.ToString("dd/MM/yyyy") ?? "—");
 							Row("Fecha resolución:", req.ResolvedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—");
+							Row("Resuelto por:", resolvedByName);
 						});
 
 						col.Item().PaddingVertical(14)
@@ -105,7 +106,7 @@ namespace SecureHub.Infrastructure.Documents
 								.Text(req.RejectedReason).FontColor(Colors.Red.Darken2);
 						}
 
-						// Timeline de auditoría
+						// Historial de auditoría
 						if (detail.AuditLogs.Any())
 						{
 							col.Item().PaddingVertical(14)
@@ -116,8 +117,9 @@ namespace SecureHub.Infrastructure.Documents
 							{
 								table.ColumnsDefinition(c =>
 								{
-									c.ConstantColumn(140);
-									c.ConstantColumn(120);
+									c.ConstantColumn(130);
+									c.ConstantColumn(110);
+									c.ConstantColumn(110);
 									c.RelativeColumn();
 								});
 
@@ -125,13 +127,18 @@ namespace SecureHub.Infrastructure.Documents
 								{
 									h.Cell().Text("Fecha").SemiBold();
 									h.Cell().Text("Acción").SemiBold();
+									h.Cell().Text("Operador").SemiBold();
 									h.Cell().Text("Notas").SemiBold();
 								});
 
 								foreach (var log in detail.AuditLogs)
 								{
-									table.Cell().PaddingVertical(2).Text(log.CreatedAt.ToString("dd/MM/yyyy HH:mm"));
+									table.Cell().PaddingVertical(2)
+										.Text(log.CreatedAt.ToString("dd/MM/yyyy HH:mm"));
 									table.Cell().PaddingVertical(2).Text(log.Action);
+									table.Cell().PaddingVertical(2)
+										.Text(log.PerformedByName ?? log.PerformedByRole ?? "—")
+										.FontColor(Colors.Grey.Darken1);
 									table.Cell().PaddingVertical(2)
 										.Text(log.Notes ?? "—").FontColor(Colors.Grey.Darken1);
 								}
@@ -147,28 +154,6 @@ namespace SecureHub.Infrastructure.Documents
 							"Personales (LOPDP, Registro Oficial Suplemento 459, 26/05/2021), " +
 							"artículos 12 al 17.")
 							.FontSize(10).FontColor(Colors.Grey.Darken1);
-
-						col.Item().PaddingTop(36).Row(row =>
-						{
-							row.RelativeItem().Column(c =>
-							{
-								c.Item().LineHorizontal(0.5f);
-								c.Item().PaddingTop(4).AlignCenter()
-									.Text("Responsable del Tratamiento").FontSize(10);
-								c.Item().AlignCenter()
-									.Text("Newbie EC S.A.S").FontSize(9).FontColor(Colors.Grey.Medium);
-							});
-							row.ConstantItem(60);
-							row.RelativeItem().Column(c =>
-							{
-								c.Item().LineHorizontal(0.5f);
-								c.Item().PaddingTop(4).AlignCenter()
-									.Text("Sello / Fecha").FontSize(10);
-								c.Item().AlignCenter()
-									.Text(DateTime.Now.ToString("dd/MM/yyyy"))
-									.FontSize(9).FontColor(Colors.Grey.Medium);
-							});
-						});
 					});
 
 					page.Footer().AlignCenter().Text(x =>

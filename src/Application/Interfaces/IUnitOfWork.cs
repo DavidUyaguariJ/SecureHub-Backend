@@ -10,5 +10,6 @@ namespace SecureHub.Application.Interfaces
 		Task CommitAsync();
 		Task RollbackAsync();
 		Task SaveChangesAsync();
+		Task SaveAsync(CancellationToken ct = default);
 	}
 }

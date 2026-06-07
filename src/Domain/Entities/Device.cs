@@ -40,6 +40,16 @@ namespace SecureHub.Domain.Entities
 			};
 		}
 
+		public void Update(
+		string? brand,
+		string? model,
+		string? serialNumber)
+		{
+			Brand = brand;
+			Model = model;
+			SerialNumber = serialNumber;
+		}
+
 		public void SoftDelete()
 		{
 			IsDeleted = true;

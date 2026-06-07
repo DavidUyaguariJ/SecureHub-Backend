@@ -20,5 +20,7 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 		public async Task AddCredentialAsync(DeviceCredential credential) => await _context.DeviceCredentials.AddAsync(credential);
 
 		public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+		public async Task UpdateAsync(Device device)=>_context.Devices.Update(device);
+		public async Task<IEnumerable<Device>> GetBySubjectIdAsync(Guid subjectId, CancellationToken ct= default) => await _context.Devices.Where(d => d.SubjectId == subjectId).ToListAsync(ct);
 	}
 }

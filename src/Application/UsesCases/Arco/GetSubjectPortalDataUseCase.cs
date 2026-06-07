@@ -26,11 +26,16 @@ namespace SecureHub.Application.UsesCases.Arco
 		public async Task<SubjectPortalDto?> ExecuteAsync(
 			Guid subjectId, CancellationToken ct = default)
 		{
-			var subject = await _subjectRepo.GetByIdAsync(subjectId, ct);
+			var subject = await _subjectRepo.GetByIdWithDevicesAsync(subjectId, ct);
 			if (subject is null) return null;
-
 			var biometric = await _biometricRepo.GetLatestBySubjectIdAsync(subjectId, ct);
-
+			var devices = subject.Devices.Select(d => new DevicePortalDto(
+				d.Id,
+				d.DeviceType,
+				d.Brand,
+				d.Model,
+				d.SerialNumber is not null ? TryDecrypt(d.SerialNumber) : null
+			)).ToList();
 			return new SubjectPortalDto(
 				subject.Id,
 				TryDecrypt(subject.Identification),
@@ -41,7 +46,8 @@ namespace SecureHub.Application.UsesCases.Arco
 				subject.SubjectType,
 				subject.ContactPerson is not null ? TryDecrypt(subject.ContactPerson) : null,
 				biometric is not null,
-				subject.CreatedAt
+				subject.CreatedAt,
+				devices
 			);
 		}
 
