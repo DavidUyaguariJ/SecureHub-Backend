@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace SecureHub.Application.Interfaces
+namespace SecureHub.Infrastructure.Persistence.Repositories
 {
 	public interface IArcoAuditLogRepository
 	{

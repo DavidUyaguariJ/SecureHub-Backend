@@ -13,6 +13,7 @@ namespace SecureHub.Domain.Entities
 		public string? NewStatus { get; set; }
 		public Guid? PerformedBy { get; set; }
 		public string? PerformedByRole { get; set; }
+		public string? PerformedByName { get; set; }
 		public string? Notes { get; set; }
 		public string? IpAddress { get; set; }
 		public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

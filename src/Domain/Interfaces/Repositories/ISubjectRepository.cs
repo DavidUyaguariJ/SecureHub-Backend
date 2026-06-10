@@ -17,5 +17,6 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 		Task SaveChangesAsync();
 		Task<Subject?> FindByDecryptedIdentificationAsync(string identification, CancellationToken ct);
 		Task<Subject?> GetByIdIncludeDeletedAsync(Guid id, CancellationToken ct);
+		Task<Subject?> GetByIdWithDevicesAsync(Guid id, CancellationToken ct = default);
 	}
 }

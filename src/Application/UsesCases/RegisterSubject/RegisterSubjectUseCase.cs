@@ -17,6 +17,7 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 		private readonly IKeycloakService _keycloak;
 		private readonly IEmailService _email;
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly IBlockchainService _blockchain;
 
 		public RegisterSubjectUseCase(
 			ISubjectRepository subjectRepo,
@@ -24,7 +25,8 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 			IEncryptionService encryption,
 			IKeycloakService keycloak,
 			IEmailService email,
-			IUnitOfWork unitOfWork)
+			IUnitOfWork unitOfWork,
+			IBlockchainService blockchain)
 		{
 			_subjectRepo = subjectRepo;
 			_deviceRepo = deviceRepo;
@@ -32,6 +34,7 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 			_keycloak = keycloak;
 			_email = email;
 			_unitOfWork = unitOfWork;
+			_blockchain = blockchain;
 		}
 
 		public async Task<RegisterSubjectResponse> ExecuteAsync(
@@ -100,7 +103,15 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 						command.Identification,
 						ct);
 				await _unitOfWork.CommitAsync();
-
+				await _blockchain.RecordAuditAsync(
+						entityId: subject.Id,
+						entityType: "SUBJECT",
+						action: "CREATED",
+						previousState: "",
+						newState: "ACTIVO",
+						operatorRef: "SYSTEM",
+						ipHash: "",
+						ct: ct);
 				try
 				{
 					await _email.SendCredentialsAsync(

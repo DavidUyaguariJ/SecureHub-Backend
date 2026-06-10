@@ -8,6 +8,7 @@ namespace SecureHub.Application.UsesCases.Arco.Dtos
 		string NewStatus,
 		string? ResponseText,
 		string? RejectedReason,
-		string? OperatorRole
+		string? OperatorRole,
+		string? OperatorName
 	);
 }

@@ -1,19 +1,23 @@
 @Library('securehub-lib') _
 
 securehubPipeline(
-    service:   'backend',
-    imageName: 'securehub-backend',
-    devEnv:    'Development',
-    stageEnv:  'Staging',
-    prodEnv:   'Production',
-    repoUrl:   'github.com/DavidUyaguariJ/SecureHub-Backend.git',
+    service:       'backend',
+    imageName:     'securehub-backend',
+    devEnv:        'Development',
+    stageEnv:      'Staging',
+    prodEnv:       'Production',
+    repoUrl:       'github.com/DavidUyaguariJ/SecureHub-Backend.git',
     getVersionCmd: {
-        powershell(
+        def csproj = powershell(
+            returnStdout: true,
             script: '''
-                $xml = [xml](Get-Content "SecureHub-Backend.csproj")
+                $f = Get-ChildItem -Recurse -Filter "*.csproj" | 
+                     Where-Object { $_.Name -notmatch "Test" } | 
+                     Select-Object -First 1 -ExpandProperty FullName
+                $xml = [xml](Get-Content $f)
                 $xml.Project.PropertyGroup.Version
-            ''',
-            returnStdout: true
+            '''
         ).trim()
+        return csproj ?: "prod-${env.BUILD_NUMBER}"
     }
 )
