@@ -57,7 +57,26 @@ spec:
                 secretKeyRef:
                   name: backend-secrets-${NAMESPACE}
                   key: keycloak-admin-secret
-
+            - name: RPC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-secrets-${NAMESPACE}
+                  key: rpc-url
+            - name: CHAIN_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-secrets-${NAMESPACE}
+                  key: chain-id
+            - name: CONTRACT_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-secrets-${NAMESPACE}
+                  key: contract-address
+            - name: DEPLOYER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets-${NAMESPACE}
+                  key: deployer-private-key
           resources:
             requests:
               memory: "256Mi"

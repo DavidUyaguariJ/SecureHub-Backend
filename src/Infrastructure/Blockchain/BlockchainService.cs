@@ -15,14 +15,14 @@ namespace SecureHub.Infrastructure.Blockchain
 
 		public BlockchainService(IConfiguration config)
 		{
-			var rpcUrl = config["Blockchain:RpcUrl"]
+			var rpcUrl = config["RPC_URL"]
 				?? throw new InvalidOperationException("Blockchain:RpcUrl no configurado");
 
-			var privateKey = config["Blockchain:DeployerPrivateKey"]
+			var privateKey = config["DEPLOYER_PRIVATE_KEY"]
 				?? throw new InvalidOperationException("Blockchain:DeployerPrivateKey no configurado");
-			_contractAddress = config["Blockchain:ContractAddress"]
+			_contractAddress = config["CONTRACT_ADDRESS"]
 				?? throw new InvalidOperationException("Blockchain:ContractAddress no configurado");
-			var chainId = long.Parse(config["Blockchain:ChainId"] ?? "31337");
+			var chainId = long.Parse(config["CHAIN_ID"] ?? "31337");
 			var account = new Account(privateKey, chainId);
 
 			_web3 = new Web3(account, rpcUrl);
