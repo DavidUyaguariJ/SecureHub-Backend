@@ -60,17 +60,17 @@ spec:
             - name: RPC_URL
               valueFrom:
                 configMapKeyRef:
-                  name: backend-secrets-${NAMESPACE}
+                  name: backend-config-${NAMESPACE}
                   key: rpc-url
             - name: CHAIN_ID
               valueFrom:
                 configMapKeyRef:
-                  name: backend-secrets-${NAMESPACE}
+                  name: backend-config-${NAMESPACE}
                   key: chain-id
             - name: CONTRACT_ADDRESS
               valueFrom:
                 configMapKeyRef:
-                  name: backend-secrets-${NAMESPACE}
+                  name: backend-config-${NAMESPACE}
                   key: contract-address
             - name: DEPLOYER_PRIVATE_KEY
               valueFrom:
