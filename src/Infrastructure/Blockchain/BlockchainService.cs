@@ -12,6 +12,8 @@ namespace SecureHub.Infrastructure.Blockchain
 		private readonly Web3 _web3;
 		private readonly string _contractAddress;
 		private readonly string _abi;
+		private static readonly HexBigInteger DefaultGas = new HexBigInteger(1_000_000);
+		private static readonly SemaphoreSlim _txLock = new(1, 1);
 
 		public BlockchainService(IConfiguration config)
 		{
@@ -47,167 +49,115 @@ namespace SecureHub.Infrastructure.Blockchain
 		}
 
 		public async Task<string> RecordAuditAsync(
-			Guid entityId,
-			string entityType,
-			string action,
-			string previousState,
-			string newState,
-			string operatorRef,
-			string ipHash,
-			CancellationToken ct = default)
+			Guid entityId, string entityType, string action,
+			string previousState, string newState,
+			string operatorRef, string ipHash, CancellationToken ct = default)
 		{
+			await _txLock.WaitAsync(ct);
 			try
 			{
-
 				var fn = GetContract().GetFunction("recordAudit");
-				var txHash = await fn.SendTransactionAsync(
+				return await fn.SendTransactionAsync(
 					_web3.TransactionManager.Account.Address,
+					DefaultGas,
+					null,
 					GuidToBytes32(entityId),
-					entityType,
-					action,
-					previousState,
-					newState,
-					operatorRef,
-					ipHash);
-				return txHash;
+					entityType, action, previousState, newState,
+					operatorRef, ipHash);
 			}
-			catch (Exception ex)
-			{
-				throw;
-			}
+			finally { _txLock.Release(); }
 		}
 
 		public async Task<string> RecordArcoRequestAsync(
-			Guid arcoRequestId,
-			Guid subjectId,
-			string requestType,
-			DateTimeOffset requestedAt,
-			CancellationToken ct = default)
+			Guid arcoRequestId, Guid subjectId, string requestType,
+			DateTimeOffset requestedAt, CancellationToken ct = default)
 		{
+			await _txLock.WaitAsync(ct);
 			try
 			{
 				var fn = GetContract().GetFunction("recordArcoRequest");
-				var txHash = await fn.SendTransactionAsync(
+				return await fn.SendTransactionAsync(
 					_web3.TransactionManager.Account.Address,
+					DefaultGas,
+					null,
 					GuidToBytes32(arcoRequestId),
 					GuidToBytes32(subjectId),
 					requestType,
 					new BigInteger(requestedAt.ToUnixTimeSeconds()));
-
-				return txHash;
 			}
-			catch (Exception ex)
-			{
-				throw;
-			}
+			finally { _txLock.Release(); }
 		}
 
 		public async Task<string> UpdateArcoStatusAsync(
-			Guid arcoRequestId,
-			string newStatus,
-			string resolutionHash,
+			Guid arcoRequestId, string newStatus, string resolutionHash,
 			CancellationToken ct = default)
 		{
+			await _txLock.WaitAsync(ct);
 			try
 			{
 				var fn = GetContract().GetFunction("updateArcoStatus");
-				var txHash = await fn.SendTransactionAsync(
+				return await fn.SendTransactionAsync(
 					_web3.TransactionManager.Account.Address,
+					DefaultGas,
+					null,
 					GuidToBytes32(arcoRequestId),
-					newStatus,
-					resolutionHash);
-				return txHash;
+					newStatus, resolutionHash);
 			}
-			catch (Exception ex)
-			{
-				throw;
-			}
+			finally { _txLock.Release(); }
 		}
 
 		public async Task<string> RegisterThirdPartyAsync(
-			Guid thirdPartyId,
-			string name,
-			string contractHash,
-			string dataCategories,
-			string purpose,
-			DateTimeOffset validUntil,
-			CancellationToken ct = default)
+			Guid thirdPartyId, string name, string contractHash,
+			string dataCategories, string purpose,
+			DateTimeOffset validUntil, CancellationToken ct = default)
 		{
+			await _txLock.WaitAsync(ct);
 			try
 			{
-
 				var fn = GetContract().GetFunction("registerThirdParty");
-				var gas = await fn.EstimateGasAsync(
+				return await fn.SendTransactionAsync(
 					_web3.TransactionManager.Account.Address,
-					null,
+					DefaultGas,
 					null,
 					GuidToBytes32(thirdPartyId),
-					name,
-					contractHash,
-					dataCategories,
-					purpose,
+					name, contractHash, dataCategories, purpose,
 					new BigInteger(validUntil.ToUnixTimeSeconds()));
-				var txHash = await fn.SendTransactionAsync(
-					_web3.TransactionManager.Account.Address,
-					new HexBigInteger(gas.Value * 120 / 100),
-					null,
-					GuidToBytes32(thirdPartyId),
-					name,
-					contractHash,
-					dataCategories,
-					purpose,
-					new BigInteger(validUntil.ToUnixTimeSeconds()));
-				return txHash;
 			}
-			catch (Exception ex)
-			{
-				throw;
-			}
+			finally { _txLock.Release(); }
 		}
 
 		public async Task<string> UpdateThirdPartyStatusAsync(
-			Guid thirdPartyId,
-			int status,
-			CancellationToken ct = default)
+			Guid thirdPartyId, int status, CancellationToken ct = default)
 		{
+			await _txLock.WaitAsync(ct);
 			try
 			{
 				var fn = GetContract().GetFunction("updateThirdPartyStatus");
-				var txHash = await fn.SendTransactionAsync(
+				return await fn.SendTransactionAsync(
 					_web3.TransactionManager.Account.Address,
+					DefaultGas,
+					null,
 					GuidToBytes32(thirdPartyId),
 					(byte)status);
-
-				return txHash;
 			}
-			catch (Exception ex)
-			{
-				throw;
-			}
+			finally { _txLock.Release(); }
 		}
 
 		public async Task<(bool Active, DateTimeOffset ValidUntil, int Status)>
 			IsThirdPartyActiveAsync(Guid thirdPartyId, CancellationToken ct = default)
 		{
-			try
-			{
-				var fn = GetContract().GetFunction("isThirdPartyActive");
-				var result = await fn.CallDecodingToDefaultAsync(
-					GuidToBytes32(thirdPartyId));
+			var fn = GetContract().GetFunction("isThirdPartyActive");
+			var result = await fn.CallDecodingToDefaultAsync(
+				GuidToBytes32(thirdPartyId));
 
-				var active = (bool)result[0].Result;
-				var unixTs = (BigInteger)result[1].Result;
-				var statusVal = (BigInteger)result[2].Result;
-				return (
-					active,
-					DateTimeOffset.FromUnixTimeSeconds((long)unixTs),
-					(int)statusVal
-				);
-			}
-			catch (Exception ex)
-			{
-				throw;
-			}
+			var active = (bool)result[0].Result;
+			var unixTs = (BigInteger)result[1].Result;
+			var statusVal = (BigInteger)result[2].Result;
+			return (
+				active,
+				DateTimeOffset.FromUnixTimeSeconds((long)unixTs),
+				(int)statusVal
+			);
 		}
 	}
 }
