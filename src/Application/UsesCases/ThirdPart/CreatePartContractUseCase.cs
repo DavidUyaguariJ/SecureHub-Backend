@@ -43,11 +43,15 @@ namespace SecureHub.Application.UsesCases.ThirdPart
 			await _unitOfWork.BeginTransactionAsync();
 			try
 			{
-				var validUntilEndOfDay = new DateTimeOffset(cmd.ValidUntil.Year, cmd.ValidUntil.Month, cmd.ValidUntil.Day,23, 59, 59, cmd.ValidUntil.Offset);
-				var contract = PartContract.Create(cmd.CompanyName, cmd.ContactEmail, cmd.ContactPerson, cmd.SubjectId,cmd.PurposeDescription, cmd.AllowedFields,
+				var validUntilEndOfDay = new DateTimeOffset(
+					cmd.ValidUntil.Year, cmd.ValidUntil.Month, cmd.ValidUntil.Day,
+					23, 59, 59, cmd.ValidUntil.Offset);
+
+				var contract = PartContract.Create(cmd.CompanyName, cmd.ContactEmail, cmd.ContactPerson, cmd.SubjectId, cmd.PurposeDescription, cmd.AllowedFields,
 					cmd.ValidFrom, validUntilEndOfDay, operatorId);
 
-				var (username, tempPass) = await _keycloak.CreateExternalUserAsync(cmd.CompanyName, cmd.ContactEmail, contract.Id, cmd.ValidUntil, ct);
+				var (username, tempPass) = await _keycloak.CreateExternalUserAsync(
+					cmd.CompanyName, cmd.ContactEmail, contract.Id, validUntilEndOfDay, ct);
 				contract.SetKeycloakUser(username, username);
 				await _repo.AddAsync(contract, ct);
 				await _unitOfWork.CommitAsync();
@@ -56,7 +60,7 @@ namespace SecureHub.Application.UsesCases.ThirdPart
 					var tx = await _blockchain.RegisterThirdPartyAsync(
 						contract.Id, cmd.CompanyName, "",
 						string.Join(",", cmd.AllowedFields),
-						cmd.PurposeDescription, cmd.ValidUntil, ct);
+						cmd.PurposeDescription, validUntilEndOfDay, ct);
 					contract.SetBlockchainTx(tx);
 					await _repo.UpdateAsync(contract, ct);
 					await _unitOfWork.SaveAsync(ct);
@@ -70,7 +74,7 @@ namespace SecureHub.Application.UsesCases.ThirdPart
 					await _email.SendExternalCredentialsAsync(
 						cmd.ContactEmail, cmd.CompanyName,
 						username, tempPass, cmd.SubjectId,
-						cmd.ValidUntil, ct);
+						validUntilEndOfDay, ct);
 				}
 				catch (Exception ex)
 				{
