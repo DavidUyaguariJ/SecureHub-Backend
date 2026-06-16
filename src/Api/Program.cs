@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.Arco;
+using SecureHub.Application.UsesCases.Dashboard;
 using SecureHub.Application.UsesCases.RegisterSubject;
 using SecureHub.Application.UsesCases.ThirdPart;
 using SecureHub.Infrastructure.Biometrics;
@@ -49,6 +50,10 @@ builder.Services.AddScoped<UpdateArcoStatusUseCase>();
 builder.Services.AddScoped<GetArcoRequestsUseCase>();
 builder.Services.AddScoped<LookupSubjectUseCase>();
 builder.Services.AddScoped<RenewPartContractUseCase>();
+builder.Services.AddScoped<GetDashboardSummaryUseCase>();
+builder.Services.AddScoped<GetDashboardAlertsUseCase>();
+builder.Services.AddScoped<GetArcoDashboardChartsUseCase>();
+builder.Services.AddScoped<GetImmutableAuditLogUseCase>();
 
 
 // ── Cifrado RSA
@@ -79,6 +84,7 @@ builder.Services.AddScoped<IBiometricAuthRepository, BiometricAuthRepository>();
 builder.Services.AddScoped<IArcoRequestRepository, ArcoRequestRepository>();
 builder.Services.AddScoped<IArcoAuditLogRepository, ArcoAuditLogRepository>();
 builder.Services.AddScoped<IPartContractRepository, PartContractRepository>();
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 
 // ── Infraestructura
 builder.Services.AddSingleton<IBiometricProcessor, ArcFaceBiometricProcessor>();
