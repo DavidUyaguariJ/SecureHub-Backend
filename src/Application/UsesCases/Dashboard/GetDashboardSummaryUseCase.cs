@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SecureHub.Application.Interfaces;
+﻿using SecureHub.Application.Interfaces;
 using SecureHub.Application.UsesCases.Dashboard.Dtos;
 using SecureHub.Infrastructure.Persistence;
 using System.Security.Cryptography;
