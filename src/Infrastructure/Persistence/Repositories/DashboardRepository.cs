@@ -17,35 +17,22 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 		public async Task<ArcoStatsRaw> GetArcoStatsAsync(CancellationToken ct = default)
 		{
 			var now = DateTimeOffset.UtcNow;
-
-			// Counts por status: usa idx_arco_requests_status
 			var total = await _db.ArcoRequests.CountAsync(ct);
 			var pending = await _db.ArcoRequests.CountAsync(r => r.Status == "PENDIENTE", ct);
 			var inProcess = await _db.ArcoRequests.CountAsync(r => r.Status == "EN_PROCESO", ct);
 			var completed = await _db.ArcoRequests.CountAsync(r => r.Status == "COMPLETADO", ct);
 			var rejected = await _db.ArcoRequests.CountAsync(r => r.Status == "RECHAZADO", ct);
-
-			var overdue = await _db.ArcoRequests.CountAsync(r =>
-				(r.Status == "PENDIENTE" || r.Status == "EN_PROCESO") &&
-				r.DueDate.HasValue && r.DueDate.Value < now, ct);
-
-			// Promedio de días de resolución calculado en SQL (EF traduce el .Average sobre TotalDays)
-			var avgDays = await _db.ArcoRequests
-				.Where(r => r.ResolvedAt.HasValue)
-				.Select(r => (r.ResolvedAt!.Value - r.RequestedAt).TotalDays)
-				.DefaultIfEmpty(0)
-				.AverageAsync(ct);
-
-			var totalFinalized = await _db.ArcoRequests
-				.CountAsync(r => r.Status == "COMPLETADO" || r.Status == "RECHAZADO", ct);
+			var overdue = await _db.ArcoRequests.CountAsync(r =>(r.Status == "PENDIENTE" || r.Status == "EN_PROCESO") &&r.DueDate.HasValue && r.DueDate.Value < now, ct);
+			var resolvedQuery = _db.ArcoRequests.Where(r => r.ResolvedAt.HasValue).Select(r => (r.ResolvedAt!.Value - r.RequestedAt).TotalDays);
+			var hasResolved = await resolvedQuery.AnyAsync(ct);
+			double avgDays = hasResolved? await resolvedQuery.AverageAsync(ct): 0;
+			var totalFinalized = await _db.ArcoRequests.CountAsync(r => r.Status == "COMPLETADO" || r.Status == "RECHAZADO", ct);
 
 			var onTimeFinalized = await _db.ArcoRequests.CountAsync(r =>
 				(r.Status == "COMPLETADO" || r.Status == "RECHAZADO") &&
 				(!r.DueDate.HasValue || r.ResolvedAt == null || r.ResolvedAt.Value <= r.DueDate.Value), ct);
 
-			return new ArcoStatsRaw(
-				total, pending, inProcess, completed, rejected, overdue,
-				avgDays, onTimeFinalized, totalFinalized);
+			return new ArcoStatsRaw(total, pending, inProcess, completed, rejected, overdue,avgDays, onTimeFinalized, totalFinalized);
 		}
 
 		public async Task<ContractStatsRaw> GetContractStatsAsync(CancellationToken ct = default)
