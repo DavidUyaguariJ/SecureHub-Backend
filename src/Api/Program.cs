@@ -91,6 +91,8 @@ builder.Services.AddSingleton<IBiometricProcessor, ArcFaceBiometricProcessor>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddSingleton<IBlockchainService, BlockchainService>();
 builder.Services.AddScoped<IPartContractPdfService, PartContractPdfService>();
+builder.Services.AddScoped<IDashboardReportService, DashboardReportService>();
+builder.Services.AddScoped<IAuditLogReportService, AuditLogReportService>();
 
 
 // ── Autenticación Keycloak / JWT
