@@ -8,6 +8,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="FaceAiSharp" Version="0.5.23" />
     <PackageReference Include="FaceAiSharp.Bundle" Version="0.5.23" />
     <PackageReference Include="MailKit" Version="4.16.0" />
