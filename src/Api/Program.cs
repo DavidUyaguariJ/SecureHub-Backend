@@ -17,6 +17,7 @@ using System.Security.Claims;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 var envFile = builder.Environment.EnvironmentName switch
 {
 	"Development" => "Develop",

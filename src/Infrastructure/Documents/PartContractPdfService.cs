@@ -40,8 +40,6 @@ namespace SecureHub.Infrastructure.Documents
 					page.Content().Column(col =>
 					{
 						col.Item().PaddingTop(16).Text("DATOS DEL CONTRATO").Bold().FontSize(13);
-
-						// Tabla de datos principales
 						col.Item().PaddingTop(8).Table(table =>
 						{
 							table.ColumnsDefinition(c => { c.RelativeColumn(1); c.RelativeColumn(2); });
@@ -67,13 +65,9 @@ namespace SecureHub.Infrastructure.Documents
 								Row("Motivo", dto.RevokedReason ?? "—");
 							}
 						});
-
-						// Campos permitidos
 						col.Item().PaddingTop(16).Text("CAMPOS DE DATOS AUTORIZADOS").Bold().FontSize(13);
 						col.Item().PaddingTop(4).Text(string.Join(", ", dto.AllowedFields))
 							.FontColor("#374151");
-
-						// Estado blockchain
 						col.Item().PaddingTop(16).Text("VERIFICACIÓN BLOCKCHAIN").Bold().FontSize(13);
 						col.Item().PaddingTop(8).Table(table =>
 						{
@@ -90,8 +84,6 @@ namespace SecureHub.Infrastructure.Documents
 							Row("Estado blockchain", blockchainStatus switch { 0 => "ACTIVO", 1 => "SUSPENDIDO", 2 => "REVOCADO", _ => "DESCONOCIDO" });
 							Row("TX Hash", dto.BlockchainTxHash ?? "Pendiente de registro");
 						});
-
-						// Campos del contrato
 						if (!string.IsNullOrEmpty(dto.BlockchainTxHash))
 						{
 							col.Item().PaddingTop(8).Text(
