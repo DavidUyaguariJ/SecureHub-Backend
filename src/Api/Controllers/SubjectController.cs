@@ -2,12 +2,13 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecureHub.Application.UsesCases.RegisterSubject;
+using SecureHub.Application.UsesCases.RegisterSubject.Dtos;
 
 namespace SecureHub.Api.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
-	[Authorize(Roles = "admin_api_role")]
+	[Authorize(Roles = "admin_api_role,technician_api_role")]
 	public class SubjectController : ControllerBase
 	{
 		private readonly RegisterSubjectUseCase _registerSubjectUseCase;

@@ -1,4 +1,5 @@
-﻿using SecureHub.Domain.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using SecureHub.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -14,8 +15,17 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 			_context = context;
 		}
 
-		public async Task AddAsync(BiometricAuth biometric) => await _context.BiometricAuths.AddAsync(biometric);
+		public async Task AddAsync(BiometricAuth biometric)
+			=> await _context.BiometricAuths.AddAsync(biometric);
 
-		public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+		public async Task SaveChangesAsync()
+			=> await _context.SaveChangesAsync();
+
+		public async Task<BiometricAuth?> GetLatestBySubjectIdAsync(
+			Guid subjectId, CancellationToken ct = default)
+			=> await _context.BiometricAuths
+				.Where(b => b.SubjectId == subjectId)
+				.OrderByDescending(b => b.CreatedAt)
+				.FirstOrDefaultAsync(ct);
 	}
 }

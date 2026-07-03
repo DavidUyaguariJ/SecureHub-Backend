@@ -9,5 +9,6 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 	{
 		Task AddAsync(BiometricAuth biometric);
 		Task SaveChangesAsync();
+		Task<BiometricAuth?> GetLatestBySubjectIdAsync(Guid subjectId, CancellationToken ct = default);
 	}
 }

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using SecureHub.Application.Interfaces;
+using SecureHub.Application.UsesCases.RegisterSubject.Dtos;
 using SecureHub.Domain.Entities;
 using SecureHub.Infrastructure.Persistence.Repositories;
 
@@ -9,110 +11,128 @@ namespace SecureHub.Application.UsesCases.RegisterSubject
 {
 	public class RegisterSubjectUseCase
 	{
-		private readonly ISubjectRepository _subjectRepository;
-		private readonly IDeviceRepository _deviceRepository;
-		private readonly IBiometricAuthRepository _biometricRepository;
-		private readonly IBiometricProcessor _biometricProcessor;
-		private readonly IEncryptionService _encryptionService;
+		private readonly ISubjectRepository _subjectRepo;
+		private readonly IDeviceRepository _deviceRepo;
+		private readonly IEncryptionService _encryption;
+		private readonly IKeycloakService _keycloak;
+		private readonly IEmailService _email;
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly IBlockchainService _blockchain;
 
-		public RegisterSubjectUseCase(ISubjectRepository subjectRepository, IDeviceRepository deviceRepository, IBiometricAuthRepository biometricRepository, IBiometricProcessor biometricProcessor,
-			IEncryptionService encryptionService,IUnitOfWork unitOfWork)
+		public RegisterSubjectUseCase(
+			ISubjectRepository subjectRepo,
+			IDeviceRepository deviceRepo,
+			IEncryptionService encryption,
+			IKeycloakService keycloak,
+			IEmailService email,
+			IUnitOfWork unitOfWork,
+			IBlockchainService blockchain)
 		{
-			_subjectRepository = subjectRepository;
-			_deviceRepository = deviceRepository;
-			_biometricRepository = biometricRepository;
-			_biometricProcessor = biometricProcessor;
-			_encryptionService = encryptionService;
+			_subjectRepo = subjectRepo;
+			_deviceRepo = deviceRepo;
+			_encryption = encryption;
+			_keycloak = keycloak;
+			_email = email;
 			_unitOfWork = unitOfWork;
+			_blockchain = blockchain;
 		}
 
-		public async Task<RegisterSubjectResponse> ExecuteAsync(RegisterSubjectCommand command)
+		public async Task<RegisterSubjectResponse> ExecuteAsync(
+			RegisterSubjectCommand command,
+			CancellationToken ct = default)
 		{
 			await _unitOfWork.BeginTransactionAsync();
 
 			try
 			{
-				var existing = await _subjectRepository.GetByIdentificationAsync(command.Identification);
-				if (existing != null)
-					throw new InvalidOperationException("Ya existe un sujeto con esa identificación");
-
-				var existingEmail = await _subjectRepository.GetByEmailAsync(command.Email);
-				if (existingEmail != null)
-					throw new InvalidOperationException("Ya existe un sujeto con ese email");
 				var subject = Subject.Create(
-					_encryptionService.Encrypt(command.Identification),
-					_encryptionService.Encrypt(command.FullName),
-					_encryptionService.Encrypt(command.Email),
-					command.Phone != null ? _encryptionService.Encrypt(command.Phone) : null,
-					command.Address != null ? _encryptionService.Encrypt(command.Address) : null,
-					command.SubjectType,
-					command.ContactPerson != null ? _encryptionService.Encrypt(command.ContactPerson) : null
+					identification: _encryption.Encrypt(command.Identification),
+					fullName: _encryption.Encrypt(command.FullName),
+					email: _encryption.Encrypt(command.Email),
+					phone: command.Phone is not null
+						? _encryption.Encrypt(command.Phone!)
+						: null,
+					address: command.Address is not null
+						? _encryption.Encrypt(command.Address!)
+						: null,
+					subjectType: command.SubjectType,
+					contactPerson: command.ContactPerson is not null
+						? _encryption.Encrypt(command.ContactPerson!)
+						: null
 				);
 
-				await _subjectRepository.AddAsync(subject);
+				await _subjectRepo.AddAsync(subject);
 
+				// Registrar dispositivos
 				var deviceResponses = new List<DeviceResponse>();
 
-				foreach (var deviceCmd in command.Devices)
+				foreach (var d in command.Devices)
 				{
 					var device = Device.Create(
-						subject.Id,
-						deviceCmd.DeviceType,
-						deviceCmd.Brand != null ? _encryptionService.Encrypt(deviceCmd.Brand) : null,
-						deviceCmd.Model != null ? _encryptionService.Encrypt(deviceCmd.Model) : null,
-						deviceCmd.SerialNumber != null ? _encryptionService.Encrypt(deviceCmd.SerialNumber) : null
-					);
+						subjectId: subject.Id,
+						deviceType: d.DeviceType,
+						brand: d.Brand,
+						model: d.Model,
+						serialNumber: _encryption.Encrypt(d.SerialNumber));
 
-					await _deviceRepository.AddAsync(device);
+					await _deviceRepo.AddAsync(device);
 
-					var credential = DeviceCredential.CreateRsa(
-						device.Id,
-						_encryptionService.Encrypt(deviceCmd.Password),
-						_encryptionService.Encrypt(deviceCmd.SystemUser)
-					);
+					// Encriptar contraseña + IV
+					var (encryptedPassword, iv) =
+						_encryption.EncryptPassword(d.Password);
 
-					await _deviceRepository.AddCredentialAsync(credential);
+					var credential = DeviceCredential.Create(
+						deviceId: device.Id,
+						encryptedPassword: encryptedPassword,
+						encryptionIV: iv,
+						systemUser: d.SystemUser);
+
+					await _deviceRepo.AddCredentialAsync(credential);
+
 					deviceResponses.Add(new DeviceResponse
 					{
 						DeviceId = device.Id,
-						DeviceType = device.DeviceType,
-						SerialNumber = device.SerialNumber
+						DeviceType = d.DeviceType,
+						SerialNumber = d.SerialNumber
 					});
 				}
-				var embeddingResult = await _biometricProcessor.ExtractEmbeddingAsync(
-					command.BiometricImageBase64);
-
-				if (!embeddingResult.FaceDetected)
-					throw new InvalidOperationException(
-						"No se detectó un rostro válido en la imagen biométrica");
-				var embeddingBytes = _biometricProcessor.SerializeEmbedding(embeddingResult.Embedding);
-				var encryptedBiometricVector = _encryptionService.EncryptBytes(embeddingBytes);
-				var encryptedConsentText = _encryptionService.Encrypt(command.ConsentText);
-				var encryptedDigitalSig = command.DigitalSignature != null
-					? _encryptionService.Encrypt(command.DigitalSignature)
-					: null;
-
-				var biometric = BiometricAuth.Create(
-					subjectId: subject.Id,
-					biometricVector: encryptedBiometricVector,
-					consentText: encryptedConsentText,
-					templateType: command.TemplateType ?? "LBPH_256",
-					digitalSignature: encryptedDigitalSig,
-					embeddingModel: embeddingResult.ModelUsed,
-					embeddingDims: embeddingResult.Dimensions,
-					confidenceScore: embeddingResult.DetectionScore
-				);
-
-				await _biometricRepository.AddAsync(biometric);
+				var (username, tempPass) =
+					await _keycloak.CreateApplicantUserAsync(
+						command.FullName,
+						command.Email,
+						command.Identification,
+						ct);
 				await _unitOfWork.CommitAsync();
+				await _blockchain.RecordAuditAsync(
+						entityId: subject.Id,
+						entityType: "SUBJECT",
+						action: "CREATED",
+						previousState: "",
+						newState: "ACTIVO",
+						operatorRef: "SYSTEM",
+						ipHash: "",
+						ct: ct);
+				try
+				{
+					await _email.SendCredentialsAsync(
+						command.Email,
+						command.FullName,
+						username,
+						subject.Id,
+						tempPass,
+						ct);
+				}
+				catch
+				{
+					
+				}
 
 				return new RegisterSubjectResponse
 				{
 					SubjectId = subject.Id,
 					Devices = deviceResponses,
-					BiometricAuthId = biometric.Id,
-					Message = $"Titular registrado con {deviceResponses.Count} dispositivo(s) exitosamente"
+					Message =
+						$"Sujeto registrado. Usuario '{username}' creado en Keycloak. Se envió correo con credenciales."
 				};
 			}
 			catch
