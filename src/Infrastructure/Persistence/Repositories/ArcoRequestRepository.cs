@@ -17,6 +17,7 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 
 		public async Task<ArcoRequest?> GetByIdAsync(Guid id, CancellationToken ct = default)
 			=> await _db.ArcoRequests
+				.IgnoreQueryFilters()
 				.Include(r => r.Subject)
 				.FirstOrDefaultAsync(r => r.Id == id, ct);
 
@@ -29,6 +30,7 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 
 		public async Task<IEnumerable<ArcoRequest>> GetAllAsync(CancellationToken ct = default)
 			=> await _db.ArcoRequests
+				.IgnoreQueryFilters()
 				.Include(r => r.Subject)
 				.OrderByDescending(r => r.CreatedAt)
 				.ToListAsync(ct);
@@ -36,6 +38,7 @@ namespace SecureHub.Infrastructure.Persistence.Repositories
 		public async Task<IEnumerable<ArcoRequest>> GetByStatusAsync(
 			string status, CancellationToken ct = default)
 			=> await _db.ArcoRequests
+				.IgnoreQueryFilters()
 				.Include(r => r.Subject)
 				.Where(r => r.Status == status)
 				.OrderByDescending(r => r.CreatedAt)
