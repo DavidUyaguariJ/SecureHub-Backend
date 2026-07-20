@@ -83,6 +83,8 @@ namespace SecureHub.Application.UsesCases.Arco
 				}
 
 				var subject = await _subjectRepo.GetByIdAsync(request.SubjectId, ct);
+				string? subjectEmailForNotification = subject is not null ? TryDecrypt(subject.Email) : null;
+				string? subjectNameForNotification = subject is not null ? TryDecrypt(subject.FullName) : null;
 
 				if (dto.NewStatus == "COMPLETADO" && subject is not null)
 				{
@@ -180,10 +182,11 @@ namespace SecureHub.Application.UsesCases.Arco
 						newStatus: dto.NewStatus,
 						resolutionHash: "",
 						ct: ct);
+
 				if (subject is not null)
 				{
-					var subjectEmail = TryDecrypt(subject.Email);
-					var subjectName = TryDecrypt(subject.FullName);
+					var subjectEmail = subjectEmailForNotification;
+					var subjectName = subjectNameForNotification;
 
 					try
 					{
