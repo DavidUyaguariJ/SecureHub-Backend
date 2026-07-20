@@ -10,4 +10,7 @@
     <Project Path="src/Domain/SecureHub.Domain.csproj" />
     <Project Path="src/Infrastructure/SecureHub.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Application/" />
+  <Folder Name="/src/Infrastructure/" />
+  <Project Path="SecureHub.Tests/SecureHub.Tests.csproj" />
 </Solution>
